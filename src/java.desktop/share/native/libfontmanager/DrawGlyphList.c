@@ -35,6 +35,20 @@
 #include "sun_java2d_loops_DrawGlyphListAA.h"
 
 
+static UInt8* getSubpixelGlyphImage(GlyphInfo *glyph, float x, float y) {
+    if (glyph->subpixelResolutionX <= 1 && glyph->subpixelResolutionY <= 1) {
+        return glyph->image;
+    }
+    int xOffset = ((int) floor(x * (float) glyph->subpixelResolutionX)) %
+                  glyph->subpixelResolutionX;
+    if(xOffset < 0) xOffset += glyph->subpixelResolutionX;
+    int yOffset = ((int) floor(y * (float) glyph->subpixelResolutionY)) %
+                  glyph->subpixelResolutionY;
+    if(yOffset < 0) yOffset += glyph->subpixelResolutionY;
+    return glyph->image + (glyph->rowBytes * glyph->height) *
+                          (xOffset + yOffset * glyph->subpixelResolutionX);
+}
+
 /*
  * Need to account for the rare case when (eg) repainting damaged
  * areas results in the drawing location being negative, in which
@@ -102,7 +116,9 @@ GlyphBlitVector* setupBlitVector(JNIEnv *env, jobject glyphlist, jint fromGlyph,
 
             ginfo = (GlyphInfo*)imagePtrs[g + fromGlyph];
             gbv->glyphs[g].glyphInfo = ginfo;
-            gbv->glyphs[g].pixels = ginfo->image;
+            gbv->glyphs[g].pixels = getSubpixelGlyphImage(ginfo,
+                                                          px + ginfo->topLeftX,
+                                                          py + ginfo->topLeftY);
             gbv->glyphs[g].width = ginfo->width;
             gbv->glyphs[g].rowBytes = ginfo->rowBytes;
             gbv->glyphs[g].height = ginfo->height;
@@ -115,7 +131,9 @@ GlyphBlitVector* setupBlitVector(JNIEnv *env, jobject glyphlist, jint fromGlyph,
         for (g=0; g<len; g++) {
             ginfo = (GlyphInfo*)imagePtrs[g + fromGlyph];
             gbv->glyphs[g].glyphInfo = ginfo;
-            gbv->glyphs[g].pixels = ginfo->image;
+            gbv->glyphs[g].pixels = getSubpixelGlyphImage(ginfo,
+                                                          x + ginfo->topLeftX,
+                                                          y + ginfo->topLeftY);
             gbv->glyphs[g].width = ginfo->width;
             gbv->glyphs[g].rowBytes = ginfo->rowBytes;
             gbv->glyphs[g].height = ginfo->height;
