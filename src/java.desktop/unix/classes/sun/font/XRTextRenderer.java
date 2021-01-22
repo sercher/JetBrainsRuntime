@@ -106,6 +106,8 @@ public class XRTextRenderer extends GlyphListPipe {
 
                 int glyphSet = cacheEntry.getGlyphSet();
 
+                int subpixelResolutionX = cacheEntry.getSubpixelResolutionX();
+                int subpixelResolutionY = cacheEntry.getSubpixelResolutionY();
                 if (glyphSet == XRGlyphCache.BGRA_GLYPH_SET) {
                     /* BGRA glyphs store pointers to BGRAGlyphInfo
                      * struct instead of glyph index */
@@ -114,7 +116,19 @@ public class XRTextRenderer extends GlyphListPipe {
                     eltList.getGlyphs().addInt(
                             (int) cacheEntry.getBgraGlyphInfoPtr());
                 }
-                else eltList.getGlyphs().addInt(cacheEntry.getGlyphID());
+                else if (subpixelResolutionX == 1 && subpixelResolutionY == 1) {
+                    eltList.getGlyphs().addInt(cacheEntry.getGlyphID());
+                }
+                else {
+                    int x = ((int) Math.floor(advX *
+                            (float) subpixelResolutionX)) % subpixelResolutionX;
+                    if (x < 0) x += subpixelResolutionX;
+                    int y = ((int) Math.floor(advY *
+                            (float) subpixelResolutionY)) % subpixelResolutionY;
+                    if (y < 0) y += subpixelResolutionY;
+                    eltList.getGlyphs().addInt(cacheEntry.getGlyphID() +
+                            x + y * subpixelResolutionX);
+                }
 
                 containsLCDGlyphs |= (glyphSet == glyphCache.lcdGlyphSet);
 
