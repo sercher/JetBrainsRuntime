@@ -59,6 +59,7 @@ import java.awt.Shape;
 import java.awt.Stroke;
 import java.awt.FontMetrics;
 import java.awt.Rectangle;
+import java.awt.Dimension;
 import java.text.AttributedCharacterIterator;
 import java.awt.Font;
 import java.awt.image.ImageObserver;
@@ -66,6 +67,7 @@ import java.awt.Transparency;
 import java.awt.font.GlyphVector;
 import java.awt.font.TextLayout;
 
+import jetbrains.awt.JBHints;
 import sun.awt.image.SurfaceManager;
 import sun.font.FontDesignMetrics;
 import sun.font.FontUtilities;
@@ -223,6 +225,7 @@ public final class SunGraphics2D
     public int antialiasHint;
     public int textAntialiasHint;
     protected int fractionalMetricsHint;
+    protected int subpixelGlyphResolutionHint;
 
     /* A gamma adjustment to the colour used in lcd text blitting */
     public int lcdTextContrast;
@@ -779,7 +782,8 @@ public final class SunGraphics2D
         }
         info.aaHint = aahint;
         info.fontStrike = info.font2D.getStrike(font, devAt, textAt,
-                                                aahint, fmhint);
+                                                aahint, fmhint,
+                                                subpixelGlyphResolutionHint);
         return info;
     }
 
@@ -1194,10 +1198,10 @@ public final class SunGraphics2D
             throw new IllegalArgumentException
                 (hintValue+" is not compatible with "+hintKey);
         }
+        boolean stateChanged;
+        boolean textStateChanged = false;
+        boolean recognized = true;
         if (hintKey instanceof SunHints.Key) {
-            boolean stateChanged;
-            boolean textStateChanged = false;
-            boolean recognized = true;
             SunHints.Key sunKey = (SunHints.Key) hintKey;
             int newHint;
             if (sunKey == SunHints.KEY_TEXT_ANTIALIAS_LCD_CONTRAST) {
@@ -1275,21 +1279,30 @@ public final class SunGraphics2D
                 stateChanged = false;
                 break;
             }
-            if (recognized) {
-                if (stateChanged) {
-                    invalidatePipe();
-                    if (textStateChanged) {
-                        fontMetrics = null;
-                        this.cachedFRC = null;
-                        validFontInfo = false;
-                        this.glyphVectorFontInfo = null;
-                    }
+        } else if (hintKey == JBHints.SUBPIXEL_GLYPH_RESOLUTION) {
+            Dimension res = (Dimension) hintValue;
+            int newHint = (res.width - 1) | ((res.height - 1) << 4);
+            stateChanged = (subpixelGlyphResolutionHint != newHint);
+            textStateChanged = stateChanged;
+            subpixelGlyphResolutionHint = newHint;
+        } else {
+            recognized = false;
+            stateChanged = false;
+        }
+        if (recognized) {
+            if (stateChanged) {
+                invalidatePipe();
+                if (textStateChanged) {
+                    fontMetrics = null;
+                    this.cachedFRC = null;
+                    validFontInfo = false;
+                    this.glyphVectorFontInfo = null;
                 }
-                if (hints != null) {
-                    hints.put(hintKey, hintValue);
-                }
-                return;
             }
+            if (hints != null) {
+                hints.put(hintKey, hintValue);
+            }
+            return;
         }
         // Nothing we recognize so none of "our state" has changed
         if (hints == null) {

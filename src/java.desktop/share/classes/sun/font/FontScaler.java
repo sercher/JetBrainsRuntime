@@ -205,6 +205,7 @@ public abstract class FontScaler implements DisposerRecord {
      */
     abstract long createScalerContext(double[] matrix,
                                       int aa, int fm,
+                                      int subpixelRes,
                                       float boldness, float italic,
                                       boolean disableHinting);
 

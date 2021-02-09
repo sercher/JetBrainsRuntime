@@ -73,6 +73,9 @@ public class FontStrikeDesc {
     int style;
     int aaHint;
     int fmHint;
+    /* x and y subpixel glyph resolution in range [1; 16],
+     * encoded in single byte */
+    int subpixelResHint;
     private int hashCode;
     private int valuemask;
 
@@ -219,11 +222,17 @@ public class FontStrikeDesc {
 
     public FontStrikeDesc(AffineTransform devAt, AffineTransform at,
                           int fStyle, int aa, int fm) {
+        this(devAt, at, fStyle, aa, fm, 0);
+    }
+
+    public FontStrikeDesc(AffineTransform devAt, AffineTransform at,
+                          int fStyle, int aa, int fm, int subpixelRes) {
         devTx = devAt;
         glyphTx = at; // not cloning glyphTx. Callers trusted to not mutate it.
         style = fStyle;
         aaHint = aa;
         fmHint = fm;
+        subpixelResHint = subpixelRes;
         valuemask = fStyle;
         switch (aa) {
            case INTVAL_TEXT_ANTIALIAS_OFF :
@@ -244,6 +253,8 @@ public class FontStrikeDesc {
         if (fm == INTVAL_FRACTIONALMETRICS_ON) {
            valuemask |= FRAC_METRICS_ON;
         }
+        // Subpixel glyph resolution takes 8 most significant bits
+        valuemask |= subpixelResHint << 24;
     }
 
     FontStrikeDesc(FontStrikeDesc desc) {
@@ -254,6 +265,7 @@ public class FontStrikeDesc {
         style = desc.style;
         aaHint = desc.aaHint;
         fmHint = desc.fmHint;
+        subpixelResHint = desc.subpixelResHint;
         hashCode = desc.hashCode;
         valuemask = desc.valuemask;
     }
@@ -261,6 +273,8 @@ public class FontStrikeDesc {
 
     public String toString() {
         return "FontStrikeDesc: Style="+style+ " AA="+aaHint+ " FM="+fmHint+
-            " devTx="+devTx+ " devTx.FontTx.ptSize="+glyphTx;
+            " devTx="+devTx+ " devTx.FontTx.ptSize="+glyphTx+
+            " subpixelResolution="+((subpixelResHint & 15) + 1)+
+            "x"+(((subpixelResHint >>> 4) & 15) + 1);
     }
 }

@@ -123,6 +123,7 @@ typedef struct FTScalerContext {
     jint       fmType;        /* fractional metrics - on/off */
     jboolean   doBold;        /* perform algorithmic bolding? */
     jboolean   doItalize;     /* perform algorithmic italicizing? */
+    FT_UnitVector subpixelResolution;
 
     /* Fontconfig info */
     FT_Render_Mode  renderFlags;
@@ -198,8 +199,6 @@ static FcInitLoadConfigAndFontsPtrType FcInitLoadConfigAndFontsPtr;
 static FcGetVersionPtrType FcGetVersionPtr;
 #endif
 
-static FT_UnitVector supplementarySubpixelGlyphResolution;
-
 static void* openFontConfig() {
     void* libfontconfig = NULL;
 #ifndef DISABLE_FONTCONFIG
@@ -230,9 +229,7 @@ static void* openFontConfig() {
 JNIEXPORT void JNICALL
 Java_sun_font_FreetypeFontScaler_initIDs(
         JNIEnv *env, jobject scaler, jclass FFSClass, jclass TKClass,
-        jclass PFClass, jstring jreFontConfName,
-        jint subpixelResolutionX,
-        jint subpixelResolutionY)
+        jclass PFClass, jstring jreFontConfName)
 {
     const char *fssLogEnabled = getenv("OPENJDK_LOG_FFS");
     const char *fontConf = (jreFontConfName == NULL) ?
@@ -241,9 +238,6 @@ Java_sun_font_FreetypeFontScaler_initIDs(
     if (fssLogEnabled != NULL && !strcmp(fssLogEnabled, "yes")) {
         logFFS = JNI_TRUE;
     }
-
-    supplementarySubpixelGlyphResolution.x = subpixelResolutionX;
-    supplementarySubpixelGlyphResolution.y = subpixelResolutionY;
 
     invalidateScalerMID =
         (*env)->GetMethodID(env, FFSClass, "invalidateScaler", "()V");
@@ -683,7 +677,7 @@ static double euclidianDistance(double a, double b) {
 JNIEXPORT jlong JNICALL
 Java_sun_font_FreetypeFontScaler_createScalerContextNative(
         JNIEnv *env, jobject scaler, jlong pScaler, jdoubleArray matrix,
-        jint aa, jint fm, jfloat boldness, jfloat italic) {
+        jint aa, jint fm, jint subpixelRes, jfloat boldness, jfloat italic) {
     double dmat[4], ptsz;
     FTScalerContext *context =
             (FTScalerContext*) calloc(1, sizeof(FTScalerContext));
@@ -707,6 +701,8 @@ Java_sun_font_FreetypeFontScaler_createScalerContextNative(
     context->transform.yy =  FloatToFTFixed((float)dmat[3]/ptsz);
     context->aaType = aa;
     context->fmType = fm;
+    context->subpixelResolution.x = (subpixelRes & 15) + 1;
+    context->subpixelResolution.y = ((subpixelRes >> 4) & 15) + 1;
 
     /* If using algorithmic styling, the base values are
      * boldness = 1.0, italic = 0.0.
@@ -1728,8 +1724,8 @@ static jlong
          * subpixelResolutionX * subpixelResolutionY images per glyph. */
         if (ftglyph->bitmap.pixel_mode ==  FT_PIXEL_MODE_GRAY &&
             context->aaType == TEXT_AA_ON && context->fmType == TEXT_FM_ON) {
-            subpixelResolutionX = supplementarySubpixelGlyphResolution.x;
-            subpixelResolutionY = supplementarySubpixelGlyphResolution.y;
+            subpixelResolutionX = context->subpixelResolution.x;
+            subpixelResolutionY = context->subpixelResolution.y;
             if (subpixelResolutionX > 1 || subpixelResolutionY > 1) {
                 subpixelGlyph = TRUE;
                 FT_Matrix matrix;

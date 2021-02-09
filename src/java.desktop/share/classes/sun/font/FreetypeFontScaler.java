@@ -74,14 +74,11 @@ class FreetypeFontScaler extends FontScaler {
                 });
 
         initIDs(FreetypeFontScaler.class, Toolkit.class, PhysicalFont.class,
-                fontConfName,
-                FontUtilities.supplementarySubpixelGlyphResolution.width,
-                FontUtilities.supplementarySubpixelGlyphResolution.height);
+                fontConfName);
     }
 
     private static native void initIDs(Class<?> FFS, Class<?> toolkitClass, Class<?> pfClass,
-                                       String jreFontDirName,
-                                       int subpixelResolutionX, int subpixelResolutionY);
+                                       String jreFontDirName);
 
     private void invalidateScaler() throws FontScalerException {
         nativeScaler = 0;
@@ -256,11 +253,11 @@ class FreetypeFontScaler extends FontScaler {
     }
 
     synchronized long createScalerContext(double[] matrix,
-            int aa, int fm, float boldness, float italic,
+            int aa, int fm, int subpixelRes, float boldness, float italic,
             boolean disableHinting) {
         if (nativeScaler != 0L) {
-            return createScalerContextNative(nativeScaler, matrix,
-                                             aa, fm, boldness, italic);
+            return createScalerContextNative(nativeScaler, matrix, aa, fm,
+                                             subpixelRes, boldness, italic);
         }
         return NullFontScaler.getNullScalerContext();
     }
@@ -297,7 +294,7 @@ class FreetypeFontScaler extends FontScaler {
     private native long getUnitsPerEMNative(long pScaler);
 
     private native long createScalerContextNative(long pScaler, double[] matrix,
-            int aa, int fm, float boldness, float italic);
+            int aa, int fm, int subpixelRes, float boldness, float italic);
 
     /* Freetype scaler context does not contain any pointers that
        has to be invalidated if native scaler is bad */

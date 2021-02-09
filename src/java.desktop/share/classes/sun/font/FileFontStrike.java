@@ -247,6 +247,7 @@ public class FileFontStrike extends PhysicalStrike {
         } else {
             pScalerContext = fileFont.getScaler().createScalerContext(matrix,
                                     desc.aaHint, desc.fmHint,
+                                    desc.subpixelResHint,
                                     boldness, italic, disableHinting);
         }
 

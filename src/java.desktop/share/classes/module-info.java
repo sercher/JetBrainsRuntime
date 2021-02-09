@@ -118,6 +118,8 @@ module java.desktop {
     opens javax.swing.plaf.basic to
         jdk.jconsole;
 
+    opens jetbrains.awt;
+
     uses java.awt.im.spi.InputMethodDescriptor;
     uses javax.accessibility.AccessibilityProvider;
     uses javax.imageio.spi.ImageInputStreamSpi;

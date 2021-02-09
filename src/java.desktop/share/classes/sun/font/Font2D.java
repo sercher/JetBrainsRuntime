@@ -301,6 +301,19 @@ public abstract class Font2D {
         return getStrike(desc, false);
     }
 
+    public FontStrike getStrike(Font font, AffineTransform devTx,
+                                AffineTransform glyphTx,
+                                int aa, int fm, int subpixelRes) {
+
+        /* Create the descriptor which is used to identify a strike
+         * in the strike cache/map. A strike is fully described by
+         * the attributes of this descriptor.
+         */
+        FontStrikeDesc desc = new FontStrikeDesc(devTx, glyphTx,
+                font.getStyle(), aa, fm, subpixelRes);
+        return getStrike(desc, false);
+    }
+
     public FontStrike getStrike(Font font, FontRenderContext frc) {
 
         AffineTransform at = frc.getTransform();
