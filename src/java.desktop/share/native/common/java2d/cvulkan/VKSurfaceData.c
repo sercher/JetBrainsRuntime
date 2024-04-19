@@ -43,49 +43,49 @@
 #define VKSD_TEXTURE         sun_java2d_pipe_hw_AccelSurface_TEXTURE
 #define VKSD_RT_TEXTURE      sun_java2d_pipe_hw_AccelSurface_RT_TEXTURE
 
-void VKSD_InitWindowSurface(VKSDOps *vksdo) {
+void VKSD_InitWindowSurface(VKWinSDOps *vkwinsdo) {
     VKGraphicsEnvironment* ge = VKGE_graphics_environment();
     VKLogicalDevice* logicalDevice = &ge->devices[ge->enabledDeviceNum];
     VkPhysicalDevice physicalDevice = logicalDevice->physicalDevice;
 
-    if (vksdo->swapchainKhr == VK_NULL_HANDLE) {
-        ge->vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, vksdo->surface, &vksdo->capabilitiesKhr);
-        ge->vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, vksdo->surface, &vksdo->formatsKhrCount, NULL);
-        if (vksdo->formatsKhrCount == 0) {
+    if (vkwinsdo->swapchainKhr == VK_NULL_HANDLE) {
+        ge->vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, vkwinsdo->surface, &vkwinsdo->capabilitiesKhr);
+        ge->vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, vkwinsdo->surface, &vkwinsdo->formatsKhrCount, NULL);
+        if (vkwinsdo->formatsKhrCount == 0) {
             J2dRlsTrace(J2D_TRACE_ERROR, "No formats for swapchain found\n");
             return;
         }
-        vksdo->formatsKhr = calloc(vksdo->formatsKhrCount, sizeof(VkSurfaceFormatKHR));
-        ge->vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, vksdo->surface, &vksdo->formatsKhrCount,
-                                                 vksdo->formatsKhr);
+        vkwinsdo->formatsKhr = calloc(vkwinsdo->formatsKhrCount, sizeof(VkSurfaceFormatKHR));
+        ge->vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, vkwinsdo->surface, &vkwinsdo->formatsKhrCount,
+                                                 vkwinsdo->formatsKhr);
 
-        ge->vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, vksdo->surface,
-                                                      &vksdo->presentModeKhrCount, NULL);
+        ge->vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, vkwinsdo->surface,
+                                                      &vkwinsdo->presentModeKhrCount, NULL);
 
-        if (vksdo->presentModeKhrCount == 0) {
+        if (vkwinsdo->presentModeKhrCount == 0) {
             J2dRlsTrace(J2D_TRACE_ERROR, "No present modes found\n");
             return;
         }
 
-        vksdo->presentModesKhr = calloc(vksdo->presentModeKhrCount, sizeof(VkPresentModeKHR));
-        ge->vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, vksdo->surface, &vksdo->presentModeKhrCount,
-                                                      vksdo->presentModesKhr);
+        vkwinsdo->presentModesKhr = calloc(vkwinsdo->presentModeKhrCount, sizeof(VkPresentModeKHR));
+        ge->vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, vkwinsdo->surface, &vkwinsdo->presentModeKhrCount,
+                                                      vkwinsdo->presentModesKhr);
 
         VkExtent2D extent = {
-                (uint32_t) (vksdo->width),
-                (uint32_t) (vksdo->height)
+                (uint32_t) (vkwinsdo->vksdOps.width),
+                (uint32_t) (vkwinsdo->vksdOps.height)
         };
 
-        uint32_t imageCount = vksdo->capabilitiesKhr.minImageCount + 1;
-        if (vksdo->capabilitiesKhr.maxImageCount > 0 && imageCount > vksdo->capabilitiesKhr.maxImageCount) {
-            imageCount = vksdo->capabilitiesKhr.maxImageCount;
+        uint32_t imageCount = vkwinsdo->capabilitiesKhr.minImageCount + 1;
+        if (vkwinsdo->capabilitiesKhr.maxImageCount > 0 && imageCount > vkwinsdo->capabilitiesKhr.maxImageCount) {
+            imageCount = vkwinsdo->capabilitiesKhr.maxImageCount;
         }
         VkSwapchainCreateInfoKHR createInfoKhr = {};
         createInfoKhr.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-        createInfoKhr.surface = vksdo->surface;
+        createInfoKhr.surface = vkwinsdo->surface;
         createInfoKhr.minImageCount = imageCount;
-        createInfoKhr.imageFormat = vksdo->formatsKhr[0].format;
-        createInfoKhr.imageColorSpace = vksdo->formatsKhr[0].colorSpace;
+        createInfoKhr.imageFormat = vkwinsdo->formatsKhr[0].format;
+        createInfoKhr.imageColorSpace = vkwinsdo->formatsKhr[0].colorSpace;
         createInfoKhr.imageExtent = extent;
         createInfoKhr.imageArrayLayers = 1;
         createInfoKhr.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
@@ -93,44 +93,44 @@ void VKSD_InitWindowSurface(VKSDOps *vksdo) {
         createInfoKhr.queueFamilyIndexCount = 0;
         createInfoKhr.pQueueFamilyIndices = NULL;
 
-        createInfoKhr.preTransform = vksdo->capabilitiesKhr.currentTransform;
+        createInfoKhr.preTransform = vkwinsdo->capabilitiesKhr.currentTransform;
         createInfoKhr.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
         createInfoKhr.presentMode = VK_PRESENT_MODE_FIFO_KHR;
         createInfoKhr.clipped = VK_TRUE;
 
-        if (ge->vkCreateSwapchainKHR(logicalDevice->device, &createInfoKhr, NULL, &vksdo->swapchainKhr) != VK_SUCCESS) {
+        if (ge->vkCreateSwapchainKHR(logicalDevice->device, &createInfoKhr, NULL, &vkwinsdo->swapchainKhr) != VK_SUCCESS) {
             J2dRlsTrace(J2D_TRACE_ERROR, "Cannot create swapchain\n");
             return;
         }
 
-        if (ge->vkGetSwapchainImagesKHR(logicalDevice->device, vksdo->swapchainKhr, &vksdo->swapChainImagesCount,
+        if (ge->vkGetSwapchainImagesKHR(logicalDevice->device, vkwinsdo->swapchainKhr, &vkwinsdo->swapChainImagesCount,
                                         NULL) != VK_SUCCESS) {
             J2dRlsTrace(J2D_TRACE_ERROR, "Cannot get swapchain images\n");
             return;
         }
 
-        if (vksdo->swapChainImagesCount == 0) {
+        if (vkwinsdo->swapChainImagesCount == 0) {
             J2dRlsTrace(J2D_TRACE_ERROR, "No swapchain images found\n");
             return;
         }
-        vksdo->swapChainImages = calloc(vksdo->swapChainImagesCount, sizeof(VkImage));
-        if (ge->vkGetSwapchainImagesKHR(logicalDevice->device, vksdo->swapchainKhr, &vksdo->swapChainImagesCount,
-                                        vksdo->swapChainImages) != VK_SUCCESS) {
+        vkwinsdo->swapChainImages = calloc(vkwinsdo->swapChainImagesCount, sizeof(VkImage));
+        if (ge->vkGetSwapchainImagesKHR(logicalDevice->device, vkwinsdo->swapchainKhr, &vkwinsdo->swapChainImagesCount,
+                                        vkwinsdo->swapChainImages) != VK_SUCCESS) {
             J2dRlsTrace(J2D_TRACE_ERROR, "Cannot get swapchain images\n");
             return;
         }
-        vksdo->swapChainImageFormat = vksdo->formatsKhr[0].format;
-        vksdo->swapChainExtent = extent;
+        vkwinsdo->swapChainImageFormat = vkwinsdo->formatsKhr[0].format;
+        vkwinsdo->swapChainExtent = extent;
 
 // Create image views
-        vksdo->swapChainImageViewsCount = vksdo->swapChainImagesCount;
-        vksdo->swapChainImageViews = calloc(vksdo->swapChainImageViewsCount, sizeof(VkImageView));
-        for (uint32_t i = 0; i < vksdo->swapChainImagesCount; i++) {
+        vkwinsdo->swapChainImageViewsCount = vkwinsdo->swapChainImagesCount;
+        vkwinsdo->swapChainImageViews = calloc(vkwinsdo->swapChainImageViewsCount, sizeof(VkImageView));
+        for (uint32_t i = 0; i < vkwinsdo->swapChainImagesCount; i++) {
             VkImageViewCreateInfo createInfo = {};
             createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-            createInfo.image = vksdo->swapChainImages[i];
+            createInfo.image = vkwinsdo->swapChainImages[i];
             createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-            createInfo.format = vksdo->swapChainImageFormat;
+            createInfo.format = vkwinsdo->swapChainImageFormat;
             createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
             createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
             createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
@@ -140,18 +140,18 @@ void VKSD_InitWindowSurface(VKSDOps *vksdo) {
             createInfo.subresourceRange.levelCount = 1;
             createInfo.subresourceRange.baseArrayLayer = 0;
             createInfo.subresourceRange.layerCount = 1;
-            if (ge->vkCreateImageView(logicalDevice->device, &createInfo, NULL, &vksdo->swapChainImageViews[i]) !=
+            if (ge->vkCreateImageView(logicalDevice->device, &createInfo, NULL, &vkwinsdo->swapChainImageViews[i]) !=
                 VK_SUCCESS) {
                 J2dRlsTrace(J2D_TRACE_ERROR, "Cannot get swapchain images\n");
                 return;
             }
         }
         // Create frame buffers
-        vksdo->swapChainFramebuffersCount = vksdo->swapChainImageViewsCount;
-        vksdo->swapChainFramebuffers = calloc(vksdo->swapChainFramebuffersCount, sizeof(VkFramebuffer));
-        for (size_t i = 0; i < vksdo->swapChainFramebuffersCount; i++) {
+        vkwinsdo->swapChainFramebuffersCount = vkwinsdo->swapChainImageViewsCount;
+        vkwinsdo->swapChainFramebuffers = calloc(vkwinsdo->swapChainFramebuffersCount, sizeof(VkFramebuffer));
+        for (size_t i = 0; i < vkwinsdo->swapChainFramebuffersCount; i++) {
             VkImageView attachments[] = {
-                    vksdo->swapChainImageViews[i]
+                    vkwinsdo->swapChainImageViews[i]
             };
 
             VkFramebufferCreateInfo framebufferInfo = {};
@@ -159,12 +159,12 @@ void VKSD_InitWindowSurface(VKSDOps *vksdo) {
             framebufferInfo.renderPass = logicalDevice->renderPass;
             framebufferInfo.attachmentCount = 1;
             framebufferInfo.pAttachments = attachments;
-            framebufferInfo.width = vksdo->swapChainExtent.width;
-            framebufferInfo.height = vksdo->swapChainExtent.height;
+            framebufferInfo.width = vkwinsdo->swapChainExtent.width;
+            framebufferInfo.height = vkwinsdo->swapChainExtent.height;
             framebufferInfo.layers = 1;
 
             if (ge->vkCreateFramebuffer(logicalDevice->device, &framebufferInfo, NULL,
-                                        &vksdo->swapChainFramebuffers[i]) != VK_SUCCESS)
+                                        &vkwinsdo->swapChainFramebuffers[i]) != VK_SUCCESS)
             {
                 J2dRlsTraceLn(J2D_TRACE_ERROR, "failed to create framebuffer!");
                 return;

@@ -30,21 +30,23 @@
 #include <pthread.h>
 #include "jni.h"
 #include "SurfaceData.h"
+#include "sun_java2d_pipe_hw_AccelSurface.h"
 #include "VKBase.h"
 
 /**
+ * These are shorthand names for the surface type constants defined in
+ * VKSurfaceData.java.
+ */
+#define VKSD_UNDEFINED       sun_java2d_pipe_hw_AccelSurface_UNDEFINED
+#define VKSD_WINDOW          sun_java2d_pipe_hw_AccelSurface_WINDOW
+#define VKSD_RT_TEXTURE      sun_java2d_pipe_hw_AccelSurface_RT_TEXTURE
+/**
  * The VKSDOps structure describes a native Vulkan surface and contains all
- * information pertaining to the native surface.  Some information about
- * the more important/different fields:
- *
- *     void *privOps;
- * Pointer to native-specific SurfaceData info, such as the
- * native Drawable handle and GraphicsConfig data.
+ * information pertaining to the native surface.
  */
 typedef struct {
-    SurfaceDataOps         sdOps;
-    void                   *privOps;
-
+    SurfaceDataOps          sdOps;
+    jint                    drawableType;
     pthread_mutex_t         mutex;
     uint32_t                width;
     uint32_t                height;
@@ -58,6 +60,19 @@ typedef struct {
     VkPipelineStageFlagBits lastWriteStage;
     VkAccessFlagBits        lastAccess;
     VkAccessFlagBits        lastWriteAccess;
+} VKSDOps;
+
+/**
+ * The VKWinSDOps structure describes a native Vulkan surface connected with a window.
+ * Some information about the more important/different fields:
+ *
+ *     void *privOps;
+ * Pointer to native-specific SurfaceData info, such as the
+ * native Drawable handle and GraphicsConfig data.
+ */
+typedef struct {
+    VKSDOps                 vksdOps;
+    void                    *privOps;
     VkSurfaceKHR            surface;
     VkSurfaceCapabilitiesKHR capabilitiesKhr;
     VkSurfaceFormatKHR*     formatsKhr;
@@ -73,8 +88,7 @@ typedef struct {
     uint32_t                swapChainImageViewsCount;
     VkFramebuffer*          swapChainFramebuffers;
     uint32_t                swapChainFramebuffersCount;
-} VKSDOps;
-
+} VKWinSDOps;
 
 /**
  * Exported methods.
@@ -89,6 +103,6 @@ void VKSD_Unlock(JNIEnv *env,
 void VKSD_Dispose(JNIEnv *env, SurfaceDataOps *ops);
 void VKSD_Delete(JNIEnv *env, VKSDOps *oglsdo);
 
-void VKSD_InitWindowSurface(VKSDOps *ops);
+void VKSD_InitWindowSurface(VKWinSDOps *vkwinsdo);
 
 #endif /* VKSurfaceData_h_Included */

@@ -623,7 +623,8 @@ JNIEXPORT void JNICALL Java_sun_java2d_vulkan_VKRenderQueue_flushBuffer
         }
     }
 
-    if (dstOps != NULL) {
+    if (dstOps != NULL && dstOps->drawableType == VKSD_WINDOW) {
+        VKWinSDOps *winDstOps = (VKWinSDOps *)dstOps;
         VKGraphicsEnvironment* ge = VKGE_graphics_environment();
         VKLogicalDevice* logicalDevice = &ge->devices[ge->enabledDeviceNum];
         VkPhysicalDevice physicalDevice = logicalDevice->physicalDevice;
@@ -632,11 +633,11 @@ JNIEXPORT void JNICALL Java_sun_java2d_vulkan_VKRenderQueue_flushBuffer
         ge->vkResetFences(logicalDevice->device, 1, &logicalDevice->inFlightFence);
 
         uint32_t imageIndex;
-        ge->vkAcquireNextImageKHR(logicalDevice->device, dstOps->swapchainKhr, UINT64_MAX,
+        ge->vkAcquireNextImageKHR(logicalDevice->device, winDstOps->swapchainKhr, UINT64_MAX,
                                   logicalDevice->imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
 
         fprintf(stderr, " Image index %d\n", imageIndex);
-        fprintf(stderr, " Image count %d\n", dstOps->swapChainImagesCount);
+        fprintf(stderr, " Image count %d\n", winDstOps->swapChainImagesCount);
         ge->vkResetCommandBuffer(logicalDevice->commandBuffer, 0);
 
         // recordCommandBuffer(logicalDevice->commandBuffer, imageIndex);
@@ -651,9 +652,9 @@ JNIEXPORT void JNICALL Java_sun_java2d_vulkan_VKRenderQueue_flushBuffer
         VkRenderPassBeginInfo renderPassInfo = {};
         renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
         renderPassInfo.renderPass = logicalDevice->renderPass;
-        renderPassInfo.framebuffer = dstOps->swapChainFramebuffers[imageIndex];
+        renderPassInfo.framebuffer = winDstOps->swapChainFramebuffers[imageIndex];
         renderPassInfo.renderArea.offset = (VkOffset2D){0, 0};
-        renderPassInfo.renderArea.extent = dstOps->swapChainExtent;
+        renderPassInfo.renderArea.extent = winDstOps->swapChainExtent;
 
         VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
         renderPassInfo.clearValueCount = 1;
@@ -665,15 +666,15 @@ JNIEXPORT void JNICALL Java_sun_java2d_vulkan_VKRenderQueue_flushBuffer
         VkViewport viewport = {};
         viewport.x = 0.0f;
         viewport.y = 0.0f;
-        viewport.width = (float)(dstOps->swapChainExtent.width);
-        viewport.height = (float)(dstOps->swapChainExtent.height);
+        viewport.width = (float)(winDstOps->swapChainExtent.width);
+        viewport.height = (float)(winDstOps->swapChainExtent.height);
         viewport.minDepth = 0.0f;
         viewport.maxDepth = 1.0f;
         ge->vkCmdSetViewport(logicalDevice->commandBuffer, 0, 1, &viewport);
 
         VkRect2D scissor = {};
         scissor.offset = (VkOffset2D){0, 0};
-        scissor.extent = dstOps->swapChainExtent;
+        scissor.extent = winDstOps->swapChainExtent;
         ge->vkCmdSetScissor(logicalDevice->commandBuffer, 0, 1, &scissor);
 
         ge->vkCmdDraw(logicalDevice->commandBuffer, 3, 1, 0, 0);
@@ -714,7 +715,7 @@ JNIEXPORT void JNICALL Java_sun_java2d_vulkan_VKRenderQueue_flushBuffer
         presentInfo.waitSemaphoreCount = 0;
         presentInfo.pWaitSemaphores = signalSemaphores;
 
-        VkSwapchainKHR swapChains[] = {dstOps->swapchainKhr};
+        VkSwapchainKHR swapChains[] = {winDstOps->swapchainKhr};
         presentInfo.swapchainCount = 1;
         presentInfo.pSwapchains = swapChains;
 

@@ -41,9 +41,10 @@ JNIEXPORT void JNICALL Java_sun_java2d_vulkan_WLVKSurfaceData_initOps
 (JNIEnv *env, jobject vksd, jint width, jint height, jint scale, jint backgroundRGB) {
 #ifndef HEADLESS
     J2dTrace3(J2D_TRACE_INFO, "Create WLVKSurfaceData with size %d x %d and scale %d\n", width, height, scale);
-    VKSDOps *vksdo = (VKSDOps *)SurfaceData_InitOps(env, vksd, sizeof(VKSDOps));
+    VKWinSDOps *vkwinsdo = (VKWinSDOps *)SurfaceData_InitOps(env, vksd, sizeof(VKWinSDOps));
+    vkwinsdo->vksdOps.drawableType = VKSD_WINDOW;
 
-    if (vksdo == NULL) {
+    if (vkwinsdo == NULL) {
         JNU_ThrowOutOfMemoryError(env, "Initialization of SurfaceData failed.");
         return;
     }
@@ -55,14 +56,14 @@ JNIEXPORT void JNICALL Java_sun_java2d_vulkan_WLVKSurfaceData_initOps
         return;
     }
 
-    vksdo->privOps = wlvksdo;
+    vkwinsdo->privOps = wlvksdo;
     wlvksdo->wl_surface = NULL;
     width /= scale; // TODO This is incorrect, but we'll deal with this later, we probably need to do something on Wayland side for app-controlled scaling
     height /= scale; // TODO This is incorrect, but we'll deal with this later, we probably need to do something on Wayland side for app-controlled scaling
-    vksdo->width = width;
-    vksdo->height = height;
-    vksdo->scale = scale;
-    vksdo->bg_color = backgroundRGB;
+    vkwinsdo->vksdOps.width = width;
+    vkwinsdo->vksdOps.height = height;
+    vkwinsdo->vksdOps.scale = scale;
+    vkwinsdo->vksdOps.bg_color = backgroundRGB;
 #endif /* !HEADLESS */
 }
 
@@ -70,12 +71,12 @@ JNIEXPORT void JNICALL
 Java_sun_java2d_vulkan_WLVKSurfaceData_assignSurface(JNIEnv *env, jobject wsd, jlong wlSurfacePtr)
 {
 #ifndef HEADLESS
-    VKSDOps* vksdo = (VKSDOps *)SurfaceData_GetOps(env, wsd);
-    if (vksdo == NULL) {
+    VKWinSDOps* vkwinsdo = (VKWinSDOps *)SurfaceData_GetOps(env, wsd);
+    if (vkwinsdo == NULL) {
         J2dRlsTrace(J2D_TRACE_ERROR, "WLVKSurfaceData_assignSurface: VKSDOps is NULL");
         return;
     }
-    WLVKSDOps* wlvksdo = (WLVKSDOps *)vksdo->privOps;
+    WLVKSDOps* wlvksdo = (WLVKSDOps *)vkwinsdo->privOps;
     if (wlvksdo == NULL) {
         J2dRlsTrace(J2D_TRACE_ERROR, "WLVKSurfaceData_assignSurface: WLVKSDOps is NULL");
         return;
@@ -83,7 +84,7 @@ Java_sun_java2d_vulkan_WLVKSurfaceData_assignSurface(JNIEnv *env, jobject wsd, j
     VKGraphicsEnvironment* ge = VKGE_graphics_environment();
     wlvksdo->wl_surface = (struct wl_surface*)jlong_to_ptr(wlSurfacePtr);
 
-    if (vksdo->surface == VK_NULL_HANDLE) {
+    if (vkwinsdo->surface == VK_NULL_HANDLE) {
         VkWaylandSurfaceCreateInfoKHR surfaceCreateInfo = {};
         surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR;
         surfaceCreateInfo.display = wl_display;
@@ -92,13 +93,13 @@ Java_sun_java2d_vulkan_WLVKSurfaceData_assignSurface(JNIEnv *env, jobject wsd, j
         if (ge->vkCreateWaylandSurfaceKHR(ge->vkInstance,
                                           &surfaceCreateInfo,
                                           NULL,
-                                          &vksdo->surface) != VK_SUCCESS) {
+                                          &vkwinsdo->surface) != VK_SUCCESS) {
             J2dRlsTrace(J2D_TRACE_ERROR, "WLVKSurfaceData_assignSurface: WLVKSDOps is NULL");
             return;
         }
     }
 
-    VKSD_InitWindowSurface(vksdo);
+    VKSD_InitWindowSurface(vkwinsdo);
     J2dRlsTraceLn(J2D_TRACE_INFO, "WLVKSurfaceData_assignSurface: Created WaylandSurfaceKHR");
 
     J2dTraceLn2(J2D_TRACE_INFO, "WLVKSurfaceData_assignSurface wl_surface(%p) wl_display(%p)", wlSurface, wl_display);
