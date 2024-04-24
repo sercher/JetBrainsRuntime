@@ -53,6 +53,9 @@ typedef struct {
     uint32_t                scale; // TODO Is it needed there at all?
     uint32_t                bg_color;
     VKLogicalDevice*        device;
+    VkImage                 image;
+    VkDeviceMemory          imageMemory;
+    VkImageView             imageView;
     VkFormat                format;
     VkImageLayout           layout;
     // We track any access and write access separately, as read-read access does not need synchronization.
@@ -60,6 +63,8 @@ typedef struct {
     VkPipelineStageFlagBits lastWriteStage;
     VkAccessFlagBits        lastAccess;
     VkAccessFlagBits        lastWriteAccess;
+    VkBuffer                blitVertexBuffer;
+    VkDeviceMemory          blitVertexBufferMemory;
 } VKSDOps;
 
 /**
@@ -103,6 +108,7 @@ void VKSD_Unlock(JNIEnv *env,
 void VKSD_Dispose(JNIEnv *env, SurfaceDataOps *ops);
 void VKSD_Delete(JNIEnv *env, VKSDOps *oglsdo);
 
+void VKSD_InitImageSurface(VKSDOps *vksdo);
 void VKSD_InitWindowSurface(VKWinSDOps *vkwinsdo);
 
 #endif /* VKSurfaceData_h_Included */

@@ -627,7 +627,6 @@ JNIEXPORT void JNICALL Java_sun_java2d_vulkan_VKRenderQueue_flushBuffer
         VKWinSDOps *winDstOps = (VKWinSDOps *)dstOps;
         VKGraphicsEnvironment* ge = VKGE_graphics_environment();
         VKLogicalDevice* logicalDevice = &ge->devices[ge->enabledDeviceNum];
-        VkPhysicalDevice physicalDevice = logicalDevice->physicalDevice;
 
         ge->vkWaitForFences(logicalDevice->device, 1, &logicalDevice->inFlightFence, VK_TRUE, UINT64_MAX);
         ge->vkResetFences(logicalDevice->device, 1, &logicalDevice->inFlightFence);
@@ -636,11 +635,8 @@ JNIEXPORT void JNICALL Java_sun_java2d_vulkan_VKRenderQueue_flushBuffer
         ge->vkAcquireNextImageKHR(logicalDevice->device, winDstOps->swapchainKhr, UINT64_MAX,
                                   logicalDevice->imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
 
-        fprintf(stderr, " Image index %d\n", imageIndex);
-        fprintf(stderr, " Image count %d\n", winDstOps->swapChainImagesCount);
         ge->vkResetCommandBuffer(logicalDevice->commandBuffer, 0);
 
-        // recordCommandBuffer(logicalDevice->commandBuffer, imageIndex);
         VkCommandBufferBeginInfo beginInfo = {};
         beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 
@@ -649,35 +645,44 @@ JNIEXPORT void JNICALL Java_sun_java2d_vulkan_VKRenderQueue_flushBuffer
             return;
         }
 
-        VkRenderPassBeginInfo renderPassInfo = {};
-        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        renderPassInfo.renderPass = logicalDevice->renderPass;
-        renderPassInfo.framebuffer = winDstOps->swapChainFramebuffers[imageIndex];
-        renderPassInfo.renderArea.offset = (VkOffset2D){0, 0};
-        renderPassInfo.renderArea.extent = winDstOps->swapChainExtent;
-
         VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
-        renderPassInfo.clearValueCount = 1;
-        renderPassInfo.pClearValues = &clearColor;
+        VkRenderPassBeginInfo renderPassInfo = {
+                .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+                .renderPass = logicalDevice->renderPass,
+                .framebuffer = winDstOps->swapChainFramebuffers[imageIndex],
+                .renderArea.offset = (VkOffset2D){0, 0},
+                .renderArea.extent = winDstOps->swapChainExtent,
+                .clearValueCount = 1,
+                .pClearValues = &clearColor
+        };
+
         ge->vkCmdBeginRenderPass(logicalDevice->commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
         ge->vkCmdBindPipeline(logicalDevice->commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                               logicalDevice->graphicsPipeline);
 
-        VkViewport viewport = {};
-        viewport.x = 0.0f;
-        viewport.y = 0.0f;
-        viewport.width = (float)(winDstOps->swapChainExtent.width);
-        viewport.height = (float)(winDstOps->swapChainExtent.height);
-        viewport.minDepth = 0.0f;
-        viewport.maxDepth = 1.0f;
+        VkBuffer vertexBuffers[] = {winDstOps->vksdOps.blitVertexBuffer};
+        VkDeviceSize offsets[] = {0};
+        ge->vkCmdBindVertexBuffers(logicalDevice->commandBuffer, 0, 1, vertexBuffers, offsets);
+        VkViewport viewport = {
+                .x = 0.0f,
+                .y = 0.0f,
+                .width = (float)(winDstOps->swapChainExtent.width),
+                .height = (float)(winDstOps->swapChainExtent.height),
+                .minDepth = 0.0f,
+                .maxDepth = 1.0f
+        };
+
         ge->vkCmdSetViewport(logicalDevice->commandBuffer, 0, 1, &viewport);
 
-        VkRect2D scissor = {};
-        scissor.offset = (VkOffset2D){0, 0};
-        scissor.extent = winDstOps->swapChainExtent;
-        ge->vkCmdSetScissor(logicalDevice->commandBuffer, 0, 1, &scissor);
+        VkRect2D scissor = {
+                .offset = (VkOffset2D){0, 0},
+                .extent = winDstOps->swapChainExtent,
+        };
 
-        ge->vkCmdDraw(logicalDevice->commandBuffer, 3, 1, 0, 0);
+        ge->vkCmdSetScissor(logicalDevice->commandBuffer, 0, 1, &scissor);
+        ge->vkCmdBindDescriptorSets(logicalDevice->commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                    logicalDevice->pipelineLayout, 0, 1, &logicalDevice->descriptorSets, 0, NULL);
+        ge->vkCmdDraw(logicalDevice->commandBuffer, 4, 1, 0, 0);
 
         ge->vkCmdEndRenderPass(logicalDevice->commandBuffer);
 
@@ -686,40 +691,35 @@ JNIEXPORT void JNICALL Java_sun_java2d_vulkan_VKRenderQueue_flushBuffer
             return;
         }
 
-        // ------
-
-        VkSubmitInfo submitInfo = {};
-        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-
         VkSemaphore waitSemaphores[] = {logicalDevice->imageAvailableSemaphore};
         VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-        submitInfo.waitSemaphoreCount = 1;
-        submitInfo.pWaitSemaphores = waitSemaphores;
-        submitInfo.pWaitDstStageMask = waitStages;
-
-        submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = &logicalDevice->commandBuffer;
-
         VkSemaphore signalSemaphores[] = {logicalDevice->renderFinishedSemaphore};
-        submitInfo.signalSemaphoreCount = 1;
-        submitInfo.pSignalSemaphores = signalSemaphores;
+
+        VkSubmitInfo submitInfo = {
+                .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+                .waitSemaphoreCount = 1,
+                .pWaitSemaphores = waitSemaphores,
+                .pWaitDstStageMask = waitStages,
+                .commandBufferCount = 1,
+                .pCommandBuffers = &logicalDevice->commandBuffer,
+                .signalSemaphoreCount = 1,
+                .pSignalSemaphores = signalSemaphores
+        };
 
         if (ge->vkQueueSubmit(logicalDevice->queue, 1, &submitInfo, logicalDevice->inFlightFence) != VK_SUCCESS) {
             J2dRlsTraceLn(J2D_TRACE_ERROR,"failed to submit draw command buffer!")
             return;
         }
 
-        VkPresentInfoKHR presentInfo = {};
-        presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-
-        presentInfo.waitSemaphoreCount = 0;
-        presentInfo.pWaitSemaphores = signalSemaphores;
-
         VkSwapchainKHR swapChains[] = {winDstOps->swapchainKhr};
-        presentInfo.swapchainCount = 1;
-        presentInfo.pSwapchains = swapChains;
-
-        presentInfo.pImageIndices = &imageIndex;
+        VkPresentInfoKHR presentInfo = {
+                .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+                .waitSemaphoreCount = 0,
+                .pWaitSemaphores = signalSemaphores,
+                .swapchainCount = 1,
+                .pSwapchains = swapChains,
+                .pImageIndices = &imageIndex
+        };
 
         ge->vkQueuePresentKHR(logicalDevice->queue, &presentInfo);
 

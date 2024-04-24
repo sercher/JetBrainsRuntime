@@ -62,4 +62,6 @@ void* CARR_array_realloc(CARR_array_t* vec, size_t new_capacity);
     ARRAY_SIZE(*PP)++;                                                        \
 } while(0)
 
+#define SARRAY_COUNT_OF(STATIC_ARRAY) (sizeof(STATIC_ARRAY)/sizeof(STATIC_ARRAY[0]))
+
 #endif // CARRAYUTILS_H

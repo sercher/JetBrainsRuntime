@@ -41,6 +41,9 @@ typedef struct {
     VkPhysicalDevice    physicalDevice;
     VkPipelineCache     pipelineCache;
     VkRenderPass        renderPass;
+    VkDescriptorSetLayout descriptorSetLayout;
+    VkDescriptorPool    descriptorPool;
+    VkDescriptorSet     descriptorSets;
     VkPipelineLayout    pipelineLayout;
     VkPipeline          graphicsPipeline;
     char*               name;
@@ -53,6 +56,7 @@ typedef struct {
     VkSemaphore         renderFinishedSemaphore;
     VkFence             inFlightFence;
     VkQueue             queue;
+    VkSampler           textureSampler;
 } VKLogicalDevice;
 
 
@@ -104,12 +108,39 @@ typedef struct {
     PFN_vkCmdDraw vkCmdDraw;
     PFN_vkCmdEndRenderPass vkCmdEndRenderPass;
     PFN_vkEndCommandBuffer vkEndCommandBuffer;
+    PFN_vkCreateImage vkCreateImage;
+    PFN_vkCreateSampler vkCreateSampler;
+    PFN_vkAllocateMemory vkAllocateMemory;
+    PFN_vkGetPhysicalDeviceMemoryProperties vkGetPhysicalDeviceMemoryProperties;
+    PFN_vkBindImageMemory vkBindImageMemory;
+    PFN_vkCreateDescriptorSetLayout vkCreateDescriptorSetLayout;
+    PFN_vkUpdateDescriptorSets vkUpdateDescriptorSets;
+    PFN_vkCreateDescriptorPool vkCreateDescriptorPool;
+    PFN_vkAllocateDescriptorSets vkAllocateDescriptorSets;
+    PFN_vkCmdBindDescriptorSets vkCmdBindDescriptorSets;
+    PFN_vkGetImageMemoryRequirements vkGetImageMemoryRequirements;
+    PFN_vkCreateBuffer vkCreateBuffer;
+    PFN_vkGetBufferMemoryRequirements vkGetBufferMemoryRequirements;
+    PFN_vkBindBufferMemory vkBindBufferMemory;
+    PFN_vkMapMemory vkMapMemory;
+    PFN_vkUnmapMemory vkUnmapMemory;
+    PFN_vkCmdBindVertexBuffers vkCmdBindVertexBuffers;
 } VKGraphicsEnvironment;
 
 
 jboolean VK_Init(jboolean verbose, jint requestedDevice);
 jboolean VK_FindDevices();
 jboolean VK_CreateLogicalDevice(jint requestedDeviceNumber);
+VkResult VK_FindMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeFilter,
+                           VkMemoryPropertyFlags properties, uint32_t* pMemoryType);
+VkResult VK_CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
+                         VkMemoryPropertyFlags properties,
+                         VkBuffer* buffer, VkDeviceMemory* bufferMemory);
+VkResult VK_CreateImage(uint32_t width, uint32_t height,
+                        VkFormat format, VkImageTiling tiling,
+                        VkImageUsageFlags usage,
+                        VkMemoryPropertyFlags properties,
+                        VkImage* image, VkDeviceMemory* imageMemory);
 
 VKGraphicsEnvironment* VKGE_graphics_environment();
 void* vulkanLibProc(VkInstance vkInstance, char* procName);
