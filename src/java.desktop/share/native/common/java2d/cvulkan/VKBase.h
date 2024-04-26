@@ -39,7 +39,6 @@ typedef char* pchar;
 typedef struct {
     VkDevice            device;
     VkPhysicalDevice    physicalDevice;
-    VkPipelineCache     pipelineCache;
     VkRenderPass        renderPass;
     VkDescriptorSetLayout descriptorSetLayout;
     VkDescriptorPool    descriptorPool;

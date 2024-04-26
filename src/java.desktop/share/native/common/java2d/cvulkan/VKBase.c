@@ -279,18 +279,16 @@ VKGraphicsEnvironment* VKGE_graphics_environment() {
             J2dRlsTrace1(J2D_TRACE_VERBOSE, "        %s\n", (char *) geInstance->extensions[i].extensionName)
         }
 
-        char* enabledLayers[MAX_ENABLED_LAYERS];
-        uint32_t enabledLayersCount = 0;
-        char* enabledExtensions[MAX_ENABLED_EXTENSIONS];
-        uint32_t enabledExtensionsCount = 0;
+        pchar* enabledLayers = ARRAY_ALLOC(pchar, MAX_ENABLED_LAYERS);
+        pchar* enabledExtensions = ARRAY_ALLOC(pchar, MAX_ENABLED_EXTENSIONS);
         void *pNext = NULL;
 #if defined(VK_USE_PLATFORM_WAYLAND_KHR)
-        enabledExtensions[enabledExtensionsCount++] = VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME;
+        ARRAY_PUSH_BACK(&enabledExtensions, VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME);
 #endif
-        enabledExtensions[enabledExtensionsCount++] = VK_KHR_SURFACE_EXTENSION_NAME;
+        ARRAY_PUSH_BACK(&enabledExtensions, VK_KHR_SURFACE_EXTENSION_NAME);
 
         // Check required layers & extensions.
-        for (uint32_t i = 0; i < enabledExtensionsCount; i++) {
+        for (uint32_t i = 0; i < ARRAY_SIZE(enabledExtensions); i++) {
             int notFound = 1;
             for (uint32_t j = 0; j < extensionsCount; j++) {
                 if (strcmp((char *) geInstance->extensions[j].extensionName, enabledExtensions[i]) == 0) {
@@ -339,8 +337,8 @@ VKGraphicsEnvironment* VKGE_graphics_environment() {
         }
 
         if (foundDebugLayer && foundDebugExt) {
-            enabledLayers[enabledLayersCount++] = VALIDATION_LAYER_NAME;
-            enabledExtensions[enabledExtensionsCount++] = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
+            ARRAY_PUSH_BACK(&enabledLayers, VALIDATION_LAYER_NAME);
+            ARRAY_PUSH_BACK(&enabledExtensions, VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
             pNext = &features;
         } else {
             J2dRlsTrace2(J2D_TRACE_WARNING, "Vulkan: %s and %s are not supported\n",
@@ -362,19 +360,23 @@ VKGraphicsEnvironment* VKGE_graphics_environment() {
                 .pNext =pNext,
                 .flags = 0,
                 .pApplicationInfo = &applicationInfo,
-                .enabledLayerCount = enabledLayersCount,
+                .enabledLayerCount = ARRAY_SIZE(enabledLayers),
                 .ppEnabledLayerNames = (const char *const *) enabledLayers,
-                .enabledExtensionCount = enabledExtensionsCount,
+                .enabledExtensionCount = ARRAY_SIZE(enabledExtensions),
                 .ppEnabledExtensionNames = (const char *const *) enabledExtensions
         };
 
         if (vkCreateInstance(&instanceCreateInfo, NULL, &geInstance->vkInstance) != VK_SUCCESS) {
             J2dRlsTrace(J2D_TRACE_ERROR, "Vulkan: Failed to create Vulkan instance\n")
             vulkanLibClose();
+            ARRAY_FREE(enabledLayers);
+            ARRAY_FREE(enabledExtensions);
             return NULL;
         } else {
             J2dRlsTrace(J2D_TRACE_INFO, "Vulkan: Instance Created\n")
         }
+        ARRAY_FREE(enabledLayers);
+        ARRAY_FREE(enabledExtensions);
 
         VKGE_INIT_VK_PROC_RET_NULL_IF_ERR(geInstance, vkEnumeratePhysicalDevices);
         VKGE_INIT_VK_PROC_RET_NULL_IF_ERR(geInstance, vkGetPhysicalDeviceFeatures2);
@@ -656,22 +658,22 @@ jboolean VK_FindDevices() {
             }
 #endif
         free(layers);
+        char* deviceName = strdup(deviceProperties2.properties.deviceName);
+        if (deviceName == NULL) {
+            J2dRlsTrace(J2D_TRACE_ERROR, "Vulkan: Cannot duplicate deviceName\n")
+            vulkanLibClose();
+            return JNI_FALSE;
+        }
+
         ARRAY_PUSH_BACK(&geInstance->devices,
                 ((VKLogicalDevice) {
+                .name = deviceName,
                 .device = VK_NULL_HANDLE,
                 .physicalDevice = geInstance->physicalDevices[i],
                 .queueFamily = queueFamily,
                 .enabledLayers = deviceEnabledLayers,
                 .enabledExtensions = deviceEnabledExtensions,
         }));
-
-        geInstance->devices[i].name = strdup(deviceProperties2.properties.deviceName);
-        if (geInstance->devices[i].name == NULL) {
-            J2dRlsTrace(J2D_TRACE_ERROR, "Vulkan: Cannot duplicate deviceName\n")
-            vulkanLibClose();
-            return JNI_FALSE;
-        }
-
     }
     if (ARRAY_SIZE(geInstance->devices) == 0) {
         J2dRlsTrace(J2D_TRACE_ERROR, "No compatible device found\n")
@@ -743,14 +745,6 @@ jboolean VK_CreateLogicalDevice(jint requestedDevice) {
     }
     VkDevice device = logicalDevice->device;
     J2dRlsTrace1(J2D_TRACE_INFO, "Logical device (%s) created\n", logicalDevice->name)
-
-    VkPipelineCacheCreateInfo pipelineCacheCreateInfo = {};
-    pipelineCacheCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
-    if (vkCreatePipelineCache(device, &pipelineCacheCreateInfo, NULL, &logicalDevice->pipelineCache) != VK_SUCCESS)
-    {
-        J2dRlsTrace(J2D_TRACE_INFO, "Cannot create pipeline cache for device")
-        return JNI_FALSE;
-    }
 
     VkAttachmentDescription colorAttachment = {
             .format = VK_FORMAT_B8G8R8A8_UNORM, //TODO: swapChain colorFormat

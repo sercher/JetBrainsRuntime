@@ -714,7 +714,7 @@ JNIEXPORT void JNICALL Java_sun_java2d_vulkan_VKRenderQueue_flushBuffer
         VkSwapchainKHR swapChains[] = {winDstOps->swapchainKhr};
         VkPresentInfoKHR presentInfo = {
                 .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-                .waitSemaphoreCount = 0,
+                .waitSemaphoreCount = 1,
                 .pWaitSemaphores = signalSemaphores,
                 .swapchainCount = 1,
                 .pSwapchains = swapChains,

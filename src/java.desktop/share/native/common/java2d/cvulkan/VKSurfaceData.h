@@ -86,13 +86,10 @@ typedef struct {
     uint32_t                presentModeKhrCount;
     VkSwapchainKHR          swapchainKhr;
     VkImage*                swapChainImages;
-    uint32_t                swapChainImagesCount;
     VkFormat                swapChainImageFormat;
     VkExtent2D              swapChainExtent;
     VkImageView*            swapChainImageViews;
-    uint32_t                swapChainImageViewsCount;
     VkFramebuffer*          swapChainFramebuffers;
-    uint32_t                swapChainFramebuffersCount;
 } VKWinSDOps;
 
 /**
