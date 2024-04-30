@@ -30,6 +30,7 @@
 #include "SurfaceData.h"
 #include "VKSurfaceData.h"
 #include "VKVertex.h"
+#include "VKImage.h"
 #include <Trace.h>
 
 void VKSD_InitImageSurface(VKSDOps *vksdo) {
@@ -39,41 +40,24 @@ void VKSD_InitImageSurface(VKSDOps *vksdo) {
 
     VKGraphicsEnvironment* ge = VKGE_graphics_environment();
     VKLogicalDevice* logicalDevice = &ge->devices[ge->enabledDeviceNum];
-
-    if (VK_CreateImage(vksdo->width, vksdo->height, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_LINEAR,
-                VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                &vksdo->image, &vksdo->imageMemory) != VK_SUCCESS)
+    vksdo->image = VKImage_Create(vksdo->width, vksdo->height, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_LINEAR,
+                                  VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    if (!vksdo->image)
     {
         J2dRlsTrace(J2D_TRACE_ERROR, "Cannot create image\n");
         return;
     }
 
-    VkImageViewCreateInfo viewInfo = {
-            .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-            .image = vksdo->image,
-            .viewType = VK_IMAGE_VIEW_TYPE_2D,
-            .format = VK_FORMAT_R8G8B8A8_UNORM,
-            .subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-            .subresourceRange.baseMipLevel = 0,
-            .subresourceRange.levelCount = 1,
-            .subresourceRange.baseArrayLayer = 0,
-            .subresourceRange.layerCount = 1
-    };
-
-    if (ge->vkCreateImageView(logicalDevice->device, &viewInfo, NULL, &vksdo->imageView) != VK_SUCCESS) {
-        J2dRlsTrace(J2D_TRACE_ERROR, "Cannot surface image view\n");
-        return;
-    }
-
     VkDescriptorImageInfo imageInfo = {
             .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-            .imageView = vksdo->imageView,
+            .imageView = vksdo->image->view,
             .sampler = logicalDevice->textureSampler
     };
 
     VkWriteDescriptorSet descriptorWrites = {
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-            .dstSet = logicalDevice->descriptorSets,
+            .dstSet = logicalDevice->blitFrameBufferRenderer->descriptorSets,
             .dstBinding = 0,
             .dstArrayElement = 0,
             .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
@@ -82,13 +66,13 @@ void VKSD_InitImageSurface(VKSDOps *vksdo) {
     };
 
     ge->vkUpdateDescriptorSets(logicalDevice->device, 1, &descriptorWrites, 0, NULL);
-    VKVertex* vertices = ARRAY_ALLOC(VKVertex, 4);
-    ARRAY_PUSH_BACK(&vertices, ((VKVertex){-1.0f, -1.0f, 0.0f, 0.0f}));
-    ARRAY_PUSH_BACK(&vertices, ((VKVertex){1.0f, -1.0f, 1.0f, 0.0f}));
-    ARRAY_PUSH_BACK(&vertices, ((VKVertex){-1.0f, 1.0f, 0.0f, 1.0f}));
-    ARRAY_PUSH_BACK(&vertices, ((VKVertex){1.0f, 1.0f, 1.0f, 1.0f}));
-
-    if (VKVertex_CreateVertexBufferFromArray(vertices, &vksdo->blitVertexBuffer, &vksdo->blitVertexBufferMemory) != VK_SUCCESS) {
+    VKTxVertex* vertices = ARRAY_ALLOC(VKTxVertex, 4);
+    ARRAY_PUSH_BACK(&vertices, ((VKTxVertex){-1.0f, -1.0f, 0.0f, 0.0f}));
+    ARRAY_PUSH_BACK(&vertices, ((VKTxVertex){1.0f, -1.0f, 1.0f, 0.0f}));
+    ARRAY_PUSH_BACK(&vertices, ((VKTxVertex){-1.0f, 1.0f, 0.0f, 1.0f}));
+    ARRAY_PUSH_BACK(&vertices, ((VKTxVertex){1.0f, 1.0f, 1.0f, 1.0f}));
+    vksdo->blitVertexBuffer = ARRAY_TO_VERTEX_BUF(vertices);
+    if (!vksdo->blitVertexBuffer) {
         J2dRlsTrace(J2D_TRACE_ERROR, "Cannot create vertex buffer\n")
         return;
     }
@@ -213,7 +197,7 @@ void VKSD_InitWindowSurface(VKWinSDOps *vkwinsdo) {
 
             VkFramebufferCreateInfo framebufferInfo = {
                     .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
-                    .renderPass = logicalDevice->renderPass,
+                    .renderPass = logicalDevice->blitFrameBufferRenderer->renderPass,
                     .attachmentCount = 1,
                     .pAttachments = attachments,
                     .width = vkwinsdo->swapChainExtent.width,

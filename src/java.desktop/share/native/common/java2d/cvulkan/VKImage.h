@@ -24,35 +24,22 @@
  * questions.
  */
 
-#ifndef VKVertex_h_Included
-#define VKVertex_h_Included
+#ifndef VKImage_h_Included
+#define VKImage_h_Included
 
 #include <vulkan/vulkan.h>
-#include "VKBuffer.h"
-
-#define ARRAY_TO_VERTEX_BUF(vertices)                                           \
-    VKBuffer_CreateFromData(vertices, ARRAY_SIZE(vertices)*sizeof (vertices[0]))
 
 typedef struct {
-    VkVertexInputAttributeDescription *attributeDescriptions;
-    uint32_t attributeDescriptionCount;
-    VkVertexInputBindingDescription* bindingDescriptions;
-    uint32_t bindingDescriptionCount;
-} VKVertexDescr;
+    VkImage                 image;
+    VkDeviceMemory          memory;
+    VkImageView             view;
+    VkFormat                format;
+} VKImage;
 
-typedef struct {
-    float px, py;
-    float u, v;
-} VKTxVertex;
+VKImage* VKImage_Create(uint32_t width, uint32_t height,
+                        VkFormat format, VkImageTiling tiling,
+                        VkImageUsageFlags usage,
+                        VkMemoryPropertyFlags properties);
 
-typedef struct {
-    float px, py;
-    float r, g, b, a;
-} VKCVertex;
-
-VKVertexDescr VKVertex_GetTxVertexDescr();
-VKVertexDescr VKVertex_GetCVertexDescr();
-
-
-
-#endif //VKVertex_h_Included
+void VKImage_free(VKImage* image);
+#endif // VKImage_h_Included

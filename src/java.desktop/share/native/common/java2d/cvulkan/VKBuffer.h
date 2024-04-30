@@ -24,35 +24,22 @@
  * questions.
  */
 
-#ifndef VKVertex_h_Included
-#define VKVertex_h_Included
-
+#ifndef VKBuffer_h_Included
+#define VKBuffer_h_Included
 #include <vulkan/vulkan.h>
-#include "VKBuffer.h"
-
-#define ARRAY_TO_VERTEX_BUF(vertices)                                           \
-    VKBuffer_CreateFromData(vertices, ARRAY_SIZE(vertices)*sizeof (vertices[0]))
 
 typedef struct {
-    VkVertexInputAttributeDescription *attributeDescriptions;
-    uint32_t attributeDescriptionCount;
-    VkVertexInputBindingDescription* bindingDescriptions;
-    uint32_t bindingDescriptionCount;
-} VKVertexDescr;
+    VkBuffer buffer;
+    VkDeviceMemory memory;
+} VKBuffer;
 
-typedef struct {
-    float px, py;
-    float u, v;
-} VKTxVertex;
+VkResult VKBuffer_FindMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeFilter,
+                                 VkMemoryPropertyFlags properties, uint32_t* pMemoryType);
 
-typedef struct {
-    float px, py;
-    float r, g, b, a;
-} VKCVertex;
+VKBuffer* VKBuffer_Create(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties);
 
-VKVertexDescr VKVertex_GetTxVertexDescr();
-VKVertexDescr VKVertex_GetCVertexDescr();
+VKBuffer* VKBuffer_CreateFromData(void* vertices, VkDeviceSize bufferSize);
 
+void VKBuffer_free(VKBuffer* buffer);
 
-
-#endif //VKVertex_h_Included
+#endif // VKBuffer_h_Included

@@ -31,6 +31,14 @@
 #include "VKBase.h"
 #include "VKSurfaceData.h"
 
+jboolean VKRenderer_CreateBlitFrameBufferRenderer();
+
+void VKRenderer_BlitFrameBuffer(VkFramebuffer frameBuffer,
+                                VkBuffer vertexBuffer,
+                                uint32_t vertexNum,
+                                uint32_t width,
+                                uint32_t height);
+
 // fill ops
 void VKRenderer_FillRect(jint x, jint y, jint w, jint h);
 

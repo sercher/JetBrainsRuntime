@@ -30,21 +30,22 @@
 #include "CArrayUtil.h"
 #include "jni.h"
 
-typedef struct {
-    char* name;
-} VKPhysicalDeviceInfo;
-
 typedef char* pchar;
 
 typedef struct {
-    VkDevice            device;
-    VkPhysicalDevice    physicalDevice;
     VkRenderPass        renderPass;
     VkDescriptorSetLayout descriptorSetLayout;
     VkDescriptorPool    descriptorPool;
     VkDescriptorSet     descriptorSets;
     VkPipelineLayout    pipelineLayout;
     VkPipeline          graphicsPipeline;
+} VKRenderer;
+
+typedef struct {
+    VkDevice            device;
+    VkPhysicalDevice    physicalDevice;
+    VKRenderer*         blitFrameBufferRenderer;
+    VKRenderer*         fillAAParallelogramRenderer;
     char*               name;
     uint32_t            queueFamily;
     pchar*              enabledLayers;
@@ -124,22 +125,18 @@ typedef struct {
     PFN_vkMapMemory vkMapMemory;
     PFN_vkUnmapMemory vkUnmapMemory;
     PFN_vkCmdBindVertexBuffers vkCmdBindVertexBuffers;
+    PFN_vkCreateRenderPass vkCreateRenderPass;
+    PFN_vkDestroyBuffer vkDestroyBuffer;
+    PFN_vkFreeMemory vkFreeMemory;
+    PFN_vkDestroyImageView vkDestroyImageView;
+    PFN_vkDestroyImage vkDestroyImage;
 } VKGraphicsEnvironment;
 
 
 jboolean VK_Init(jboolean verbose, jint requestedDevice);
 jboolean VK_FindDevices();
 jboolean VK_CreateLogicalDevice(jint requestedDeviceNumber);
-VkResult VK_FindMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeFilter,
-                           VkMemoryPropertyFlags properties, uint32_t* pMemoryType);
-VkResult VK_CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
-                         VkMemoryPropertyFlags properties,
-                         VkBuffer* buffer, VkDeviceMemory* bufferMemory);
-VkResult VK_CreateImage(uint32_t width, uint32_t height,
-                        VkFormat format, VkImageTiling tiling,
-                        VkImageUsageFlags usage,
-                        VkMemoryPropertyFlags properties,
-                        VkImage* image, VkDeviceMemory* imageMemory);
+jboolean VK_CreateLogicalDeviceRenderers();
 
 VKGraphicsEnvironment* VKGE_graphics_environment();
 void* vulkanLibProc(VkInstance vkInstance, char* procName);

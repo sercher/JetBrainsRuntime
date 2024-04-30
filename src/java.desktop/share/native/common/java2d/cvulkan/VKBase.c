@@ -160,7 +160,10 @@ jboolean VK_Init(jboolean verb, jint requestedDevice) {
     if (!VK_FindDevices()) {
         return JNI_FALSE;
     }
-    return VK_CreateLogicalDevice(requestedDevice);
+    if (!VK_CreateLogicalDevice(requestedDevice)) {
+        return JNI_FALSE;
+    }
+    return VK_CreateLogicalDeviceRenderers();
 }
 
 static const char* physicalDeviceTypeString(VkPhysicalDeviceType type)
@@ -431,6 +434,11 @@ VKGraphicsEnvironment* VKGE_graphics_environment() {
         VKGE_INIT_VK_PROC_RET_NULL_IF_ERR(geInstance, vkMapMemory);
         VKGE_INIT_VK_PROC_RET_NULL_IF_ERR(geInstance, vkUnmapMemory);
         VKGE_INIT_VK_PROC_RET_NULL_IF_ERR(geInstance, vkCmdBindVertexBuffers);
+        VKGE_INIT_VK_PROC_RET_NULL_IF_ERR(geInstance, vkCreateRenderPass);
+        VKGE_INIT_VK_PROC_RET_NULL_IF_ERR(geInstance, vkDestroyBuffer);
+        VKGE_INIT_VK_PROC_RET_NULL_IF_ERR(geInstance, vkFreeMemory);
+        VKGE_INIT_VK_PROC_RET_NULL_IF_ERR(geInstance, vkDestroyImageView);
+        VKGE_INIT_VK_PROC_RET_NULL_IF_ERR(geInstance, vkDestroyImage);
 
 #if defined(VK_USE_PLATFORM_WAYLAND_KHR)
         VKGE_INIT_VK_PROC_RET_NULL_IF_ERR(geInstance, vkGetPhysicalDeviceWaylandPresentationSupportKHR);
@@ -440,20 +448,6 @@ VKGraphicsEnvironment* VKGE_graphics_environment() {
     }
     return geInstance;
 }
-
-VkShaderModule createShaderModule(VkDevice device, uint32_t* shader, uint32_t sz) {
-    VkShaderModuleCreateInfo createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    createInfo.codeSize = sz;
-    createInfo.pCode = (uint32_t*)shader;
-    VkShaderModule shaderModule;
-    if (geInstance->vkCreateShaderModule(device, &createInfo, NULL, &shaderModule) != VK_SUCCESS) {
-        J2dRlsTrace(J2D_TRACE_ERROR, "failed to create shader module\n")
-        return VK_NULL_HANDLE;
-    }
-    return shaderModule;
-}
-
 
 jboolean VK_FindDevices() {
     uint32_t physicalDevicesCount;
@@ -746,201 +740,6 @@ jboolean VK_CreateLogicalDevice(jint requestedDevice) {
     VkDevice device = logicalDevice->device;
     J2dRlsTrace1(J2D_TRACE_INFO, "Logical device (%s) created\n", logicalDevice->name)
 
-    VkAttachmentDescription colorAttachment = {
-            .format = VK_FORMAT_B8G8R8A8_UNORM, //TODO: swapChain colorFormat
-            .samples = VK_SAMPLE_COUNT_1_BIT,
-            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-            .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-            .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-            .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-            .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
-    };
-
-    VkAttachmentReference colorReference = {
-            .attachment = 0,
-            .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-    };
-
-    VkSubpassDescription subpassDescription = {
-            .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
-            .colorAttachmentCount = 1,
-            .pColorAttachments = &colorReference
-    };
-
-    // Subpass dependencies for layout transitions
-    VkSubpassDependency dependency = {
-            .srcSubpass = VK_SUBPASS_EXTERNAL,
-            .dstSubpass = 0,
-            .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-            .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-            .srcAccessMask = 0,
-            .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
-    };
-
-    VkRenderPassCreateInfo renderPassInfo = {
-            .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
-            .attachmentCount = 1,
-            .pAttachments = &colorAttachment,
-            .subpassCount = 1,
-            .pSubpasses = &subpassDescription,
-            .dependencyCount = 1,
-            .pDependencies = &dependency
-    };
-
-    if (vkCreateRenderPass(device, &renderPassInfo, NULL, &logicalDevice->renderPass) != VK_SUCCESS)
-    {
-        J2dRlsTrace(J2D_TRACE_INFO, "Cannot create render pass for device")
-        return JNI_FALSE;
-    }
-
-    // Create graphics pipeline
-    VkShaderModule vertShaderModule = createShaderModule(device, blit_vert_data, sizeof (blit_vert_data));
-    VkShaderModule fragShaderModule = createShaderModule(device, blit_frag_data, sizeof (blit_frag_data));
-
-    VkPipelineShaderStageCreateInfo vertShaderStageInfo = {
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-            .stage = VK_SHADER_STAGE_VERTEX_BIT,
-            .module = vertShaderModule,
-            .pName = "main"
-    };
-
-    VkPipelineShaderStageCreateInfo fragShaderStageInfo = {
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-            .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
-            .module = fragShaderModule,
-            .pName = "main"
-    };
-
-    VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
-
-    VkPipelineVertexInputStateCreateInfo vertexInputInfo = {
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-            .vertexBindingDescriptionCount = 1,
-            .vertexAttributeDescriptionCount = VKVertex_AttributeDescriptionsSize(),
-            .pVertexBindingDescriptions = VKVertex_GetBindingDescription(),
-            .pVertexAttributeDescriptions = VKVertex_GetAttributeDescriptions()
-    };
-
-    VkPipelineInputAssemblyStateCreateInfo inputAssembly = {
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
-            .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP,
-            .primitiveRestartEnable = VK_FALSE
-    };
-
-    VkPipelineViewportStateCreateInfo viewportState = {
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
-            .viewportCount = 1,
-            .scissorCount = 1
-    };
-
-    VkPipelineRasterizationStateCreateInfo rasterizer = {
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
-            .depthClampEnable = VK_FALSE,
-            .rasterizerDiscardEnable = VK_FALSE,
-            .polygonMode = VK_POLYGON_MODE_FILL,
-            .lineWidth = 1.0f,
-            .cullMode = VK_CULL_MODE_NONE,
-            .depthBiasEnable = VK_FALSE,
-            .depthBiasConstantFactor = 0.0f,
-            .depthBiasClamp = 0.0f,
-            .depthBiasSlopeFactor = 0.0f
-    };
-
-    VkPipelineMultisampleStateCreateInfo multisampling = {
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
-            .sampleShadingEnable = VK_FALSE,
-            .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT
-    };
-
-    VkPipelineColorBlendAttachmentState colorBlendAttachment = {
-            .colorWriteMask = VK_COLOR_COMPONENT_R_BIT |
-                              VK_COLOR_COMPONENT_G_BIT |
-                              VK_COLOR_COMPONENT_B_BIT |
-                              VK_COLOR_COMPONENT_A_BIT,
-            .blendEnable = VK_FALSE
-    };
-
-    VkPipelineColorBlendStateCreateInfo colorBlending = {
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
-            .logicOpEnable = VK_FALSE,
-            .logicOp = VK_LOGIC_OP_COPY,
-            .attachmentCount = 1,
-            .pAttachments = &colorBlendAttachment,
-            .blendConstants[0] = 0.0f,
-            .blendConstants[1] = 0.0f,
-            .blendConstants[2] = 0.0f,
-            .blendConstants[3] = 0.0f
-    };
-
-    VkDynamicState dynamicStates[] = {
-            VK_DYNAMIC_STATE_VIEWPORT,
-            VK_DYNAMIC_STATE_SCISSOR
-    };
-
-    VkPipelineDynamicStateCreateInfo dynamicState = {
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
-            .dynamicStateCount = 2,
-            .pDynamicStates = dynamicStates
-    };
-
-    VkDescriptorSetLayoutBinding samplerLayoutBinding = {
-            .binding = 0,
-            .descriptorCount = 1,
-            .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-            .pImmutableSamplers = NULL,
-            .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT
-    };
-
-    VkDescriptorSetLayoutCreateInfo layoutInfo = {
-            .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-            .bindingCount = 1,
-            .pBindings = &samplerLayoutBinding
-    };
-
-    if (geInstance->vkCreateDescriptorSetLayout(device, &layoutInfo, NULL, &logicalDevice->descriptorSetLayout) != VK_SUCCESS) {
-        J2dRlsTrace(J2D_TRACE_INFO,  "failed to create descriptor set layout!");
-        return JNI_FALSE;
-    }
-
-    VkPipelineLayoutCreateInfo pipelineLayoutInfo = {
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-            .setLayoutCount = 1,
-            .pSetLayouts = &logicalDevice->descriptorSetLayout,
-            .pushConstantRangeCount = 0
-    };
-
-    if (geInstance->vkCreatePipelineLayout(device, &pipelineLayoutInfo, NULL, &logicalDevice->pipelineLayout) != VK_SUCCESS) {
-        J2dRlsTrace(J2D_TRACE_INFO, "failed to create pipeline layout!\n")
-        return JNI_FALSE;
-    }
-
-    VkGraphicsPipelineCreateInfo pipelineInfo = {
-            .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-            .stageCount = 2,
-            .pStages = shaderStages,
-            .pVertexInputState = &vertexInputInfo,
-            .pInputAssemblyState = &inputAssembly,
-            .pViewportState = &viewportState,
-            .pRasterizationState = &rasterizer,
-            .pMultisampleState = &multisampling,
-            .pColorBlendState = &colorBlending,
-            .pDynamicState = &dynamicState,
-            .layout = logicalDevice->pipelineLayout,
-            .renderPass = logicalDevice->renderPass,
-            .subpass = 0,
-            .basePipelineHandle = VK_NULL_HANDLE,
-            .basePipelineIndex = -1
-    };
-
-    if (geInstance->vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, NULL,
-                                              &logicalDevice->graphicsPipeline) != VK_SUCCESS)
-    {
-        J2dRlsTrace(J2D_TRACE_INFO, "failed to create graphics pipeline!\n")
-        return JNI_FALSE;
-    }
-    geInstance->vkDestroyShaderModule(device, fragShaderModule, NULL);
-    geInstance->vkDestroyShaderModule(device, vertShaderModule, NULL);
 
     // Create command pull
     VkCommandPoolCreateInfo poolInfo = {
@@ -990,185 +789,7 @@ jboolean VK_CreateLogicalDevice(jint requestedDevice) {
         return JNI_FALSE;
     }
 
-    VkSamplerCreateInfo samplerInfo = {
-            .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
-            .magFilter = VK_FILTER_LINEAR,
-            .minFilter = VK_FILTER_LINEAR,
-
-            .addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-            .addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-            .addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-
-            .anisotropyEnable = VK_FALSE,
-            .maxAnisotropy = 1.0f,
-
-            .compareEnable = VK_FALSE,
-            .compareOp = VK_COMPARE_OP_ALWAYS,
-            .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
-            .mipLodBias = 0.0f,
-            .minLod = 0.0f,
-            .maxLod = 0.0f
-    };
-
-    if (geInstance->vkCreateSampler(device, &samplerInfo, NULL, &logicalDevice->textureSampler) != VK_SUCCESS) {
-        J2dRlsTraceLn(J2D_TRACE_INFO, "failed to create texture sampler!");
-        return JNI_FALSE;
-    }
-
-    VkDescriptorPoolSize poolSize = {
-            .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-            .descriptorCount = 1
-    };
-
-    VkDescriptorPoolCreateInfo descrPoolInfo = {
-            .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-            .poolSizeCount = 1,
-            .pPoolSizes = &poolSize,
-            .maxSets = 1
-    };
-
-    if (geInstance->vkCreateDescriptorPool(device, &descrPoolInfo, NULL, &logicalDevice->descriptorPool) != VK_SUCCESS) {
-        J2dRlsTraceLn(J2D_TRACE_INFO, "failed to create descriptor pool!")
-        return JNI_FALSE;
-    }
-
-    VkDescriptorSetAllocateInfo descrAllocInfo = {
-            .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-            .descriptorPool = logicalDevice->descriptorPool,
-            .descriptorSetCount = 1,
-            .pSetLayouts = &logicalDevice->descriptorSetLayout
-    };
-
-    if (geInstance->vkAllocateDescriptorSets(device, &descrAllocInfo, &logicalDevice->descriptorSets) != VK_SUCCESS) {
-        J2dRlsTraceLn(J2D_TRACE_ERROR, "failed to allocate descriptor sets!");
-        return JNI_FALSE;
-    }
-
     return JNI_TRUE;
-}
-
- VkResult VK_FindMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeFilter,
-                                  VkMemoryPropertyFlags properties, uint32_t* pMemoryType) {
-    VkPhysicalDeviceMemoryProperties memProperties;
-    VKGraphicsEnvironment* ge = VKGE_graphics_environment();
-    ge->vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
-
-    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
-        if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
-            *pMemoryType = i;
-            return VK_SUCCESS;
-        }
-    }
-
-     return VK_ERROR_UNKNOWN;
-}
-
-VkResult VK_CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
-                         VkMemoryPropertyFlags properties,
-                         VkBuffer* buffer, VkDeviceMemory* bufferMemory)
-{
-    VKGraphicsEnvironment* ge = VKGE_graphics_environment();
-    VKLogicalDevice* logicalDevice = &ge->devices[ge->enabledDeviceNum];
-
-    VkBufferCreateInfo bufferInfo = {
-            .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-            .size = size,
-            .usage = usage,
-            .sharingMode = VK_SHARING_MODE_EXCLUSIVE
-    };
-
-    if (ge->vkCreateBuffer(logicalDevice->device, &bufferInfo, NULL, buffer) != VK_SUCCESS) {
-        J2dRlsTraceLn(J2D_TRACE_ERROR, "failed to allocate descriptor sets!")
-        return VK_ERROR_UNKNOWN;
-    }
-
-
-    VkMemoryRequirements memRequirements;
-    ge->vkGetBufferMemoryRequirements(logicalDevice->device, *buffer, &memRequirements);
-
-    uint32_t memoryType;
-
-    if (VK_FindMemoryType(logicalDevice->physicalDevice,
-                          memRequirements.memoryTypeBits,
-                          properties, &memoryType) != VK_SUCCESS)
-    {
-        J2dRlsTraceLn(J2D_TRACE_ERROR, "failed to find memory!")
-        return VK_ERROR_UNKNOWN;
-    }
-
-    VkMemoryAllocateInfo allocInfo = {
-            .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-            .allocationSize = memRequirements.size,
-            .memoryTypeIndex = memoryType
-    };
-
-    if (ge->vkAllocateMemory(logicalDevice->device, &allocInfo, NULL, bufferMemory) != VK_SUCCESS) {
-        J2dRlsTraceLn(J2D_TRACE_ERROR, "failed to allocate buffer memory!");
-        return VK_ERROR_UNKNOWN;
-    }
-
-    if (ge->vkBindBufferMemory(logicalDevice->device, *buffer, *bufferMemory, 0) != VK_SUCCESS) {
-        J2dRlsTraceLn(J2D_TRACE_ERROR, "failed to bind buffer memory!");
-        return VK_ERROR_UNKNOWN;
-    }
-    return VK_SUCCESS;
-}
-
-VkResult VK_CreateImage(uint32_t width, uint32_t height,
-                        VkFormat format, VkImageTiling tiling,
-                        VkImageUsageFlags usage,
-                        VkMemoryPropertyFlags properties,
-                        VkImage* image, VkDeviceMemory* imageMemory)
-{
-    VKGraphicsEnvironment* ge = VKGE_graphics_environment();
-    VKLogicalDevice* logicalDevice = &ge->devices[ge->enabledDeviceNum];
-
-    VkImageCreateInfo imageInfo = {
-            .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-            .imageType = VK_IMAGE_TYPE_2D,
-            .extent.width = width,
-            .extent.height = height,
-            .extent.depth = 1,
-            .mipLevels = 1,
-            .arrayLayers = 1,
-            .format = format,
-            .tiling = tiling,
-            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-            .usage = usage,
-            .samples = VK_SAMPLE_COUNT_1_BIT,
-            .sharingMode = VK_SHARING_MODE_EXCLUSIVE
-    };
-
-    if (ge->vkCreateImage(logicalDevice->device, &imageInfo, NULL, image) != VK_SUCCESS) {
-        J2dRlsTraceLn(J2D_TRACE_ERROR, "Cannot create surface image");
-        return VK_ERROR_UNKNOWN;
-    }
-
-    VkMemoryRequirements memRequirements;
-    ge->vkGetImageMemoryRequirements(logicalDevice->device, *image, &memRequirements);
-
-    uint32_t memoryType;
-    if (VK_FindMemoryType(logicalDevice->physicalDevice,
-                          memRequirements.memoryTypeBits,
-                          properties, &memoryType) != VK_SUCCESS)
-    {
-        J2dRlsTraceLn(J2D_TRACE_ERROR, "Failed to find memory")
-        return VK_ERROR_UNKNOWN;
-    }
-
-    VkMemoryAllocateInfo allocInfo = {
-            .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-            .allocationSize = memRequirements.size,
-            .memoryTypeIndex = memoryType
-    };
-
-    if (ge->vkAllocateMemory(logicalDevice->device, &allocInfo, NULL, imageMemory) != VK_SUCCESS) {
-        J2dRlsTraceLn(J2D_TRACE_ERROR, "Failed to allocate image memory");
-        return VK_ERROR_UNKNOWN;
-    }
-
-    ge->vkBindImageMemory(logicalDevice->device, *image, *imageMemory, 0);
-    return VK_SUCCESS;
 }
 
 JNIEXPORT void JNICALL JNI_OnUnload(__attribute__((unused)) JavaVM *vm, __attribute__((unused)) void *reserved) {

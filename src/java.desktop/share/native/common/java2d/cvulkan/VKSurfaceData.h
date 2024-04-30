@@ -32,6 +32,8 @@
 #include "SurfaceData.h"
 #include "sun_java2d_pipe_hw_AccelSurface.h"
 #include "VKBase.h"
+#include "VKBuffer.h"
+#include "VKImage.h"
 
 /**
  * These are shorthand names for the surface type constants defined in
@@ -53,18 +55,13 @@ typedef struct {
     uint32_t                scale; // TODO Is it needed there at all?
     uint32_t                bg_color;
     VKLogicalDevice*        device;
-    VkImage                 image;
-    VkDeviceMemory          imageMemory;
-    VkImageView             imageView;
-    VkFormat                format;
-    VkImageLayout           layout;
+    VKImage*                image;
     // We track any access and write access separately, as read-read access does not need synchronization.
     VkPipelineStageFlagBits lastStage;
     VkPipelineStageFlagBits lastWriteStage;
     VkAccessFlagBits        lastAccess;
     VkAccessFlagBits        lastWriteAccess;
-    VkBuffer                blitVertexBuffer;
-    VkDeviceMemory          blitVertexBufferMemory;
+    VKBuffer*               blitVertexBuffer;
 } VKSDOps;
 
 /**

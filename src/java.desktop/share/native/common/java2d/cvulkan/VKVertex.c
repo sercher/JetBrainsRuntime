@@ -27,64 +27,71 @@
 #ifndef HEADLESS
 
 #include <string.h>
-#include <Trace.h>
 #include "CArrayUtil.h"
 #include "VKVertex.h"
-#include "VKBase.h"
 
-static VkVertexInputAttributeDescription attributeDescriptions [] = {
-        {
-                .binding = 0,
-                .location = 0,
-                .format = VK_FORMAT_R32G32_SFLOAT,
-                .offset = offsetof(VKVertex, px)
-        },
-        {
-                .binding = 0,
-                .location = 1,
-                .format = VK_FORMAT_R32G32_SFLOAT,
-                .offset = offsetof(VKVertex, u)
-        }
-};
-
-VkVertexInputBindingDescription* VKVertex_GetBindingDescription() {
-    static VkVertexInputBindingDescription bindingDescription = {
-            .binding = 0,
-            .stride = sizeof(VKVertex),
-            .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
+VKVertexDescr VKVertex_GetTxVertexDescr() {
+    static VkVertexInputBindingDescription bindingDescriptions[] = {
+            {
+                    .binding = 0,
+                    .stride = sizeof(VKTxVertex),
+                    .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
+            }
     };
-    return &bindingDescription;
+
+    static VkVertexInputAttributeDescription attributeDescriptions [] = {
+            {
+                    .binding = 0,
+                    .location = 0,
+                    .format = VK_FORMAT_R32G32_SFLOAT,
+                    .offset = offsetof(VKTxVertex, px)
+            },
+            {
+                    .binding = 0,
+                    .location = 1,
+                    .format = VK_FORMAT_R32G32_SFLOAT,
+                    .offset = offsetof(VKTxVertex, u)
+            }
+    };
+
+    return (VKVertexDescr) {
+        .attributeDescriptions = attributeDescriptions,
+        .attributeDescriptionCount = SARRAY_COUNT_OF(attributeDescriptions),
+        .bindingDescriptions = bindingDescriptions,
+        .bindingDescriptionCount = SARRAY_COUNT_OF(bindingDescriptions)
+    };
 }
 
-VkVertexInputAttributeDescription* VKVertex_GetAttributeDescriptions() {
-    return attributeDescriptions;
-}
+VKVertexDescr VKVertex_GetCVertexDescr() {
+    static VkVertexInputBindingDescription bindingDescriptions[] = {
+            {
+                    .binding = 0,
+                    .stride = sizeof(VKCVertex),
+                    .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
+            }
+    };
 
-uint32_t VKVertex_AttributeDescriptionsSize() {
-    return SARRAY_COUNT_OF(attributeDescriptions);
-}
+    static VkVertexInputAttributeDescription attributeDescriptions [] = {
+            {
+                    .binding = 0,
+                    .location = 0,
+                    .format = VK_FORMAT_R32G32_SFLOAT,
+                    .offset = offsetof(VKCVertex, px)
+            },
+            {
+                    .binding = 0,
+                    .location = 1,
+                    .format = VK_FORMAT_R32G32B32A32_SFLOAT,
+                    .offset = offsetof(VKCVertex, r)
+            }
+    };
 
-VkResult VKVertex_CreateVertexBufferFromArray(VKVertex* vertices, VkBuffer* pVertexBuffer, VkDeviceMemory* pVertexBufferMemory) {
-    VKGraphicsEnvironment* ge = VKGE_graphics_environment();
-    VKLogicalDevice* logicalDevice = &ge->devices[ge->enabledDeviceNum];
-
-    VkDeviceSize bufferSize = ARRAY_SIZE(vertices)*sizeof (vertices[0]);
-
-    VK_CreateBuffer(bufferSize,
-                    VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                    pVertexBuffer, pVertexBufferMemory);
-
-    void* data;
-    if (ge->vkMapMemory(logicalDevice->device, *pVertexBufferMemory, 0, bufferSize, 0, &data) != VK_SUCCESS) {
-        J2dRlsTraceLn(J2D_TRACE_ERROR, "failed to map memory!");
-        return VK_ERROR_UNKNOWN;
-    }
-    memcpy(data, vertices, bufferSize);
-    ge->vkUnmapMemory(logicalDevice->device, *pVertexBufferMemory);
-
-    return VK_SUCCESS;
+    return (VKVertexDescr) {
+            .attributeDescriptions = attributeDescriptions,
+            .attributeDescriptionCount = SARRAY_COUNT_OF(attributeDescriptions),
+            .bindingDescriptions = bindingDescriptions,
+            .bindingDescriptionCount = SARRAY_COUNT_OF(bindingDescriptions)
+    };
 }
 
 #endif /* !HEADLESS */

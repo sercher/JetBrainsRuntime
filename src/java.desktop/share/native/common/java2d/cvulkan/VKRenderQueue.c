@@ -637,79 +637,14 @@ JNIEXPORT void JNICALL Java_sun_java2d_vulkan_VKRenderQueue_flushBuffer
 
         ge->vkResetCommandBuffer(logicalDevice->commandBuffer, 0);
 
-        VkCommandBufferBeginInfo beginInfo = {};
-        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        VKRenderer_BlitFrameBuffer(
+                winDstOps->swapChainFramebuffers[imageIndex],
+                winDstOps->vksdOps.blitVertexBuffer->buffer, 4,
+                winDstOps->vksdOps.width,
+                winDstOps->vksdOps.height
+        );
 
-        if (ge->vkBeginCommandBuffer(logicalDevice->commandBuffer, &beginInfo) != VK_SUCCESS) {
-            J2dRlsTraceLn(J2D_TRACE_ERROR, "failed to begin recording command buffer!");
-            return;
-        }
-
-        VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
-        VkRenderPassBeginInfo renderPassInfo = {
-                .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-                .renderPass = logicalDevice->renderPass,
-                .framebuffer = winDstOps->swapChainFramebuffers[imageIndex],
-                .renderArea.offset = (VkOffset2D){0, 0},
-                .renderArea.extent = winDstOps->swapChainExtent,
-                .clearValueCount = 1,
-                .pClearValues = &clearColor
-        };
-
-        ge->vkCmdBeginRenderPass(logicalDevice->commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-        ge->vkCmdBindPipeline(logicalDevice->commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                              logicalDevice->graphicsPipeline);
-
-        VkBuffer vertexBuffers[] = {winDstOps->vksdOps.blitVertexBuffer};
-        VkDeviceSize offsets[] = {0};
-        ge->vkCmdBindVertexBuffers(logicalDevice->commandBuffer, 0, 1, vertexBuffers, offsets);
-        VkViewport viewport = {
-                .x = 0.0f,
-                .y = 0.0f,
-                .width = (float)(winDstOps->swapChainExtent.width),
-                .height = (float)(winDstOps->swapChainExtent.height),
-                .minDepth = 0.0f,
-                .maxDepth = 1.0f
-        };
-
-        ge->vkCmdSetViewport(logicalDevice->commandBuffer, 0, 1, &viewport);
-
-        VkRect2D scissor = {
-                .offset = (VkOffset2D){0, 0},
-                .extent = winDstOps->swapChainExtent,
-        };
-
-        ge->vkCmdSetScissor(logicalDevice->commandBuffer, 0, 1, &scissor);
-        ge->vkCmdBindDescriptorSets(logicalDevice->commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                    logicalDevice->pipelineLayout, 0, 1, &logicalDevice->descriptorSets, 0, NULL);
-        ge->vkCmdDraw(logicalDevice->commandBuffer, 4, 1, 0, 0);
-
-        ge->vkCmdEndRenderPass(logicalDevice->commandBuffer);
-
-        if (ge->vkEndCommandBuffer(logicalDevice->commandBuffer) != VK_SUCCESS) {
-            J2dRlsTraceLn(J2D_TRACE_ERROR, "failed to record command buffer!")
-            return;
-        }
-
-        VkSemaphore waitSemaphores[] = {logicalDevice->imageAvailableSemaphore};
-        VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
         VkSemaphore signalSemaphores[] = {logicalDevice->renderFinishedSemaphore};
-
-        VkSubmitInfo submitInfo = {
-                .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-                .waitSemaphoreCount = 1,
-                .pWaitSemaphores = waitSemaphores,
-                .pWaitDstStageMask = waitStages,
-                .commandBufferCount = 1,
-                .pCommandBuffers = &logicalDevice->commandBuffer,
-                .signalSemaphoreCount = 1,
-                .pSignalSemaphores = signalSemaphores
-        };
-
-        if (ge->vkQueueSubmit(logicalDevice->queue, 1, &submitInfo, logicalDevice->inFlightFence) != VK_SUCCESS) {
-            J2dRlsTraceLn(J2D_TRACE_ERROR,"failed to submit draw command buffer!")
-            return;
-        }
 
         VkSwapchainKHR swapChains[] = {winDstOps->swapchainKhr};
         VkPresentInfoKHR presentInfo = {
