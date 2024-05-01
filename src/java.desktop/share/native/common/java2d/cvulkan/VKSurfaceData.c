@@ -139,78 +139,14 @@ void VKSD_InitWindowSurface(VKWinSDOps *vkwinsdo) {
             return;
         }
 
-        uint32_t swapChainImagesCount;
-        if (ge->vkGetSwapchainImagesKHR(logicalDevice->device, vkwinsdo->swapchainKhr, &swapChainImagesCount,
-                                        NULL) != VK_SUCCESS) {
-            J2dRlsTrace(J2D_TRACE_ERROR, "Cannot get swapchain images\n");
-            return;
-        }
+        vkwinsdo->swapChainImages = VKImage_CreateImageArrayFromSwapChain(
+                                        vkwinsdo->swapchainKhr,
+                                        logicalDevice->blitFrameBufferRenderer->renderPass,
+                                        vkwinsdo->formatsKhr[0].format, extent);
 
-        if (swapChainImagesCount == 0) {
-            J2dRlsTrace(J2D_TRACE_ERROR, "No swapchain images found\n");
-            return;
-        }
-        vkwinsdo->swapChainImages = ARRAY_ALLOC(VkImage, swapChainImagesCount);
-
-        if (ge->vkGetSwapchainImagesKHR(logicalDevice->device, vkwinsdo->swapchainKhr, &swapChainImagesCount,
-                                        vkwinsdo->swapChainImages) != VK_SUCCESS) {
-            J2dRlsTrace(J2D_TRACE_ERROR, "Cannot get swapchain images\n");
-            return;
-        }
-        ARRAY_SIZE(vkwinsdo->swapChainImages) = swapChainImagesCount;
-
-        vkwinsdo->swapChainImageFormat = vkwinsdo->formatsKhr[0].format;
-        vkwinsdo->swapChainExtent = extent;
-
-// Create image views
-        vkwinsdo->swapChainImageViews = ARRAY_ALLOC(VkImageView,  swapChainImagesCount);
-        ARRAY_SIZE(vkwinsdo->swapChainImageViews) = swapChainImagesCount;
-        for (uint32_t i = 0; i < swapChainImagesCount; i++) {
-            VkImageViewCreateInfo createInfo = {
-                    .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-                    .image = vkwinsdo->swapChainImages[i],
-                    .viewType = VK_IMAGE_VIEW_TYPE_2D,
-                    .format = vkwinsdo->swapChainImageFormat,
-                    .components.r = VK_COMPONENT_SWIZZLE_IDENTITY,
-                    .components.g = VK_COMPONENT_SWIZZLE_IDENTITY,
-                    .components.b = VK_COMPONENT_SWIZZLE_IDENTITY,
-                    .components.a = VK_COMPONENT_SWIZZLE_IDENTITY,
-                    .subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                    .subresourceRange.baseMipLevel = 0,
-                    .subresourceRange.levelCount = 1,
-                    .subresourceRange.baseArrayLayer = 0,
-                    .subresourceRange.layerCount = 1
-            };
-            if (ge->vkCreateImageView(logicalDevice->device, &createInfo, NULL, &vkwinsdo->swapChainImageViews[i]) !=
-                VK_SUCCESS) {
-                J2dRlsTrace(J2D_TRACE_ERROR, "Cannot get swapchain images\n");
-                return;
-            }
-        }
-        // Create frame buffers
-        vkwinsdo->swapChainFramebuffers = ARRAY_ALLOC(VkFramebuffer, swapChainImagesCount);
-        ARRAY_SIZE(vkwinsdo->swapChainFramebuffers) = swapChainImagesCount;
-        for (size_t i = 0; i < swapChainImagesCount; i++) {
-            VkImageView attachments[] = {
-                    vkwinsdo->swapChainImageViews[i]
-            };
-
-            VkFramebufferCreateInfo framebufferInfo = {
-                    .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
-                    .renderPass = logicalDevice->blitFrameBufferRenderer->renderPass,
-                    .attachmentCount = 1,
-                    .pAttachments = attachments,
-                    .width = vkwinsdo->swapChainExtent.width,
-                    .height = vkwinsdo->swapChainExtent.height,
-                    .layers = 1
-            };
-
-            if (ge->vkCreateFramebuffer(logicalDevice->device, &framebufferInfo, NULL,
-                                        &vkwinsdo->swapChainFramebuffers[i]) != VK_SUCCESS)
-            {
-                J2dRlsTraceLn(J2D_TRACE_ERROR, "failed to create framebuffer!");
-                return;
-            }
+        if (!vkwinsdo->swapChainImages) {
+          J2dRlsTraceLn(J2D_TRACE_ERROR, "Cannot get swapchain images");
+          return;
         }
     }
 }

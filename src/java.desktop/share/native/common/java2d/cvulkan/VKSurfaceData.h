@@ -82,11 +82,7 @@ typedef struct {
     VkPresentModeKHR*       presentModesKhr;
     uint32_t                presentModeKhrCount;
     VkSwapchainKHR          swapchainKhr;
-    VkImage*                swapChainImages;
-    VkFormat                swapChainImageFormat;
-    VkExtent2D              swapChainExtent;
-    VkImageView*            swapChainImageViews;
-    VkFramebuffer*          swapChainFramebuffers;
+    VKImage*                swapChainImages;
 } VKWinSDOps;
 
 /**

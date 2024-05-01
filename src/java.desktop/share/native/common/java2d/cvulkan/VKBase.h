@@ -130,6 +130,7 @@ typedef struct {
     PFN_vkFreeMemory vkFreeMemory;
     PFN_vkDestroyImageView vkDestroyImageView;
     PFN_vkDestroyImage vkDestroyImage;
+    PFN_vkDestroyFramebuffer vkDestroyFramebuffer;
 } VKGraphicsEnvironment;
 
 

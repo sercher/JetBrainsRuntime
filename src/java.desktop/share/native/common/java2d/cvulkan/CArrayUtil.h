@@ -22,6 +22,8 @@ void* CARR_array_realloc(CARR_array_t* vec, size_t new_capacity);
  * @param SIZE size of the array
  */
 #define ARRAY_ALLOC(T, SIZE) (T*)CARR_array_alloc(sizeof(T), SIZE)
+
+
 #define ARRAY_T(P) (CARR_array_t *)((char*)P - offsetof(CARR_array_t, data))
 
 /**
@@ -37,10 +39,25 @@ void* CARR_array_realloc(CARR_array_t* vec, size_t new_capacity);
 #define ARRAY_CAPACITY(P) (ARRAY_T(P))->capacity
 
 /**
+ * @param P pointer to the first data element of the array
+ * @return last element in the array
+ */
+#define ARRAY_LAST(P) (P[(ARRAY_T(P))->size - 1])
+
+/**
  * Deallocate the vector
  * @param P pointer to the first data element of the array
  */
 #define ARRAY_FREE(P) free(ARRAY_T(P))
+
+/**
+ * Apply function to the vector
+ * @param P pointer to the first data element of the array
+ * @param F function to apply
+ */
+#define ARRAY_APPLY(P, F) do {                            \
+    for (uint32_t _i = 0; _i < ARRAY_SIZE(P); _i++) F(&(P[_i])); \
+} while(0)
 
 /**
  * Shrink capacity of the array to its size

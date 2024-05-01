@@ -439,6 +439,7 @@ VKGraphicsEnvironment* VKGE_graphics_environment() {
         VKGE_INIT_VK_PROC_RET_NULL_IF_ERR(geInstance, vkFreeMemory);
         VKGE_INIT_VK_PROC_RET_NULL_IF_ERR(geInstance, vkDestroyImageView);
         VKGE_INIT_VK_PROC_RET_NULL_IF_ERR(geInstance, vkDestroyImage);
+        VKGE_INIT_VK_PROC_RET_NULL_IF_ERR(geInstance, vkDestroyFramebuffer);
 
 #if defined(VK_USE_PLATFORM_WAYLAND_KHR)
         VKGE_INIT_VK_PROC_RET_NULL_IF_ERR(geInstance, vkGetPhysicalDeviceWaylandPresentationSupportKHR);
