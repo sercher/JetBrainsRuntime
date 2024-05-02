@@ -637,11 +637,10 @@ JNIEXPORT void JNICALL Java_sun_java2d_vulkan_VKRenderQueue_flushBuffer
 
         ge->vkResetCommandBuffer(logicalDevice->commandBuffer, 0);
 
-        VKRenderer_BlitFrameBuffer(
-                winDstOps->swapChainImages[imageIndex].framebuffer,
-                winDstOps->vksdOps.blitVertexBuffer->buffer, 4,
-                winDstOps->vksdOps.width,
-                winDstOps->vksdOps.height
+        VKRenderer_TextureRender(
+                &winDstOps->swapChainImages[imageIndex],
+                winDstOps->vksdOps.image,
+                winDstOps->vksdOps.blitVertexBuffer->buffer, 4
         );
 
         VkSemaphore signalSemaphores[] = {logicalDevice->renderFinishedSemaphore};

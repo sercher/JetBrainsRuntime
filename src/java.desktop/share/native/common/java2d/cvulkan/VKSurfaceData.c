@@ -49,23 +49,6 @@ void VKSD_InitImageSurface(VKSDOps *vksdo) {
         return;
     }
 
-    VkDescriptorImageInfo imageInfo = {
-            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-            .imageView = vksdo->image->view,
-            .sampler = logicalDevice->textureSampler
-    };
-
-    VkWriteDescriptorSet descriptorWrites = {
-            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-            .dstSet = logicalDevice->blitFrameBufferRenderer->descriptorSets,
-            .dstBinding = 0,
-            .dstArrayElement = 0,
-            .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-            .descriptorCount = 1,
-            .pImageInfo = &imageInfo
-    };
-
-    ge->vkUpdateDescriptorSets(logicalDevice->device, 1, &descriptorWrites, 0, NULL);
     VKTxVertex* vertices = ARRAY_ALLOC(VKTxVertex, 4);
     ARRAY_PUSH_BACK(&vertices, ((VKTxVertex){-1.0f, -1.0f, 0.0f, 0.0f}));
     ARRAY_PUSH_BACK(&vertices, ((VKTxVertex){1.0f, -1.0f, 1.0f, 0.0f}));
@@ -141,7 +124,7 @@ void VKSD_InitWindowSurface(VKWinSDOps *vkwinsdo) {
 
         vkwinsdo->swapChainImages = VKImage_CreateImageArrayFromSwapChain(
                                         vkwinsdo->swapchainKhr,
-                                        logicalDevice->blitFrameBufferRenderer->renderPass,
+                                        logicalDevice->fillTexturePoly->renderPass,
                                         vkwinsdo->formatsKhr[0].format, extent);
 
         if (!vkwinsdo->swapChainImages) {

@@ -31,6 +31,7 @@
 typedef struct {
     VkBuffer buffer;
     VkDeviceMemory memory;
+    VkDeviceSize size;
 } VKBuffer;
 
 VkResult VKBuffer_FindMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeFilter,

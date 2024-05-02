@@ -44,8 +44,8 @@ typedef struct {
 typedef struct {
     VkDevice            device;
     VkPhysicalDevice    physicalDevice;
-    VKRenderer*         blitFrameBufferRenderer;
-    VKRenderer*         fillAAParallelogramRenderer;
+    VKRenderer*         fillTexturePoly;
+    VKRenderer*         fillColorPoly;
     char*               name;
     uint32_t            queueFamily;
     pchar*              enabledLayers;

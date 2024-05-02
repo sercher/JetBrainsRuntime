@@ -39,6 +39,50 @@
 #undef SHADER_ENTRY
 #undef BYTECODE_END
 
+VkRenderPassCreateInfo* VKRenderer_GetGenericRenderPassInfo() {
+    static VkAttachmentDescription colorAttachment = {
+            .format = VK_FORMAT_B8G8R8A8_UNORM, //TODO: swapChain colorFormat
+            .samples = VK_SAMPLE_COUNT_1_BIT,
+            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+            .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+            .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+            .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+            .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+    };
+
+    static VkAttachmentReference colorReference = {
+            .attachment = 0,
+            .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+    };
+
+    static VkSubpassDescription subpassDescription = {
+            .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
+            .colorAttachmentCount = 1,
+            .pColorAttachments = &colorReference
+    };
+
+    // Subpass dependencies for layout transitions
+    static VkSubpassDependency dependency = {
+            .srcSubpass = VK_SUBPASS_EXTERNAL,
+            .dstSubpass = 0,
+            .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+            .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+            .srcAccessMask = 0,
+            .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
+    };
+
+    static VkRenderPassCreateInfo renderPassInfo = {
+            .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+            .attachmentCount = 1,
+            .pAttachments = &colorAttachment,
+            .subpassCount = 1,
+            .pSubpasses = &subpassDescription,
+            .dependencyCount = 1,
+            .pDependencies = &dependency
+    };
+    return &renderPassInfo;
+}
 
 VkShaderModule createShaderModule(VkDevice device, uint32_t* shader, uint32_t sz) {
     VKGraphicsEnvironment* ge = VKGE_graphics_environment();
@@ -54,58 +98,15 @@ VkShaderModule createShaderModule(VkDevice device, uint32_t* shader, uint32_t sz
     return shaderModule;
 }
 
-jboolean VKRenderer_CreateBlitFrameBufferRenderer() {
+VKRenderer* VKRenderer_CreateFillTexturePoly() {
     VKGraphicsEnvironment* ge = VKGE_graphics_environment();
     VKLogicalDevice* logicalDevice = &ge->devices[ge->enabledDeviceNum];
-    if (logicalDevice->blitFrameBufferRenderer != NULL) {
-        return JNI_TRUE;
-    }
-    logicalDevice->blitFrameBufferRenderer = malloc(sizeof (VKRenderer ));
+    VKRenderer* blitFrameBufferRenderer = malloc(sizeof (VKRenderer ));
 
     VkDevice device = logicalDevice->device;
-    VkAttachmentDescription colorAttachment = {
-            .format = VK_FORMAT_B8G8R8A8_UNORM, //TODO: swapChain colorFormat
-            .samples = VK_SAMPLE_COUNT_1_BIT,
-            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-            .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-            .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-            .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-            .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
-    };
 
-    VkAttachmentReference colorReference = {
-            .attachment = 0,
-            .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-    };
-
-    VkSubpassDescription subpassDescription = {
-            .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
-            .colorAttachmentCount = 1,
-            .pColorAttachments = &colorReference
-    };
-
-    // Subpass dependencies for layout transitions
-    VkSubpassDependency dependency = {
-            .srcSubpass = VK_SUBPASS_EXTERNAL,
-            .dstSubpass = 0,
-            .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-            .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-            .srcAccessMask = 0,
-            .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
-    };
-
-    VkRenderPassCreateInfo renderPassInfo = {
-            .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
-            .attachmentCount = 1,
-            .pAttachments = &colorAttachment,
-            .subpassCount = 1,
-            .pSubpasses = &subpassDescription,
-            .dependencyCount = 1,
-            .pDependencies = &dependency
-    };
-
-    if (ge->vkCreateRenderPass(logicalDevice->device, &renderPassInfo, NULL, &logicalDevice->blitFrameBufferRenderer->renderPass) != VK_SUCCESS)
+    if (ge->vkCreateRenderPass(logicalDevice->device, VKRenderer_GetGenericRenderPassInfo(),
+                               NULL, &blitFrameBufferRenderer->renderPass) != VK_SUCCESS)
     {
         J2dRlsTrace(J2D_TRACE_INFO, "Cannot create render pass for device")
         return JNI_FALSE;
@@ -215,7 +216,7 @@ jboolean VKRenderer_CreateBlitFrameBufferRenderer() {
             .pBindings = &samplerLayoutBinding
     };
 
-    if (ge->vkCreateDescriptorSetLayout(device, &layoutInfo, NULL, &logicalDevice->blitFrameBufferRenderer->descriptorSetLayout) != VK_SUCCESS) {
+    if (ge->vkCreateDescriptorSetLayout(device, &layoutInfo, NULL, &blitFrameBufferRenderer->descriptorSetLayout) != VK_SUCCESS) {
         J2dRlsTrace(J2D_TRACE_INFO,  "failed to create descriptor set layout!");
         return JNI_FALSE;
     }
@@ -223,11 +224,13 @@ jboolean VKRenderer_CreateBlitFrameBufferRenderer() {
     VkPipelineLayoutCreateInfo pipelineLayoutInfo = {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
             .setLayoutCount = 1,
-            .pSetLayouts = &logicalDevice->blitFrameBufferRenderer->descriptorSetLayout,
+            .pSetLayouts = &blitFrameBufferRenderer->descriptorSetLayout,
             .pushConstantRangeCount = 0
     };
 
-    if (ge->vkCreatePipelineLayout(device, &pipelineLayoutInfo, NULL, &logicalDevice->blitFrameBufferRenderer->pipelineLayout) != VK_SUCCESS) {
+    if (ge->vkCreatePipelineLayout(device, &pipelineLayoutInfo, NULL,
+                                   &blitFrameBufferRenderer->pipelineLayout) != VK_SUCCESS)
+    {
         J2dRlsTrace(J2D_TRACE_INFO, "failed to create pipeline layout!\n")
         return JNI_FALSE;
     }
@@ -243,15 +246,15 @@ jboolean VKRenderer_CreateBlitFrameBufferRenderer() {
             .pMultisampleState = &multisampling,
             .pColorBlendState = &colorBlending,
             .pDynamicState = &dynamicState,
-            .layout = logicalDevice->blitFrameBufferRenderer->pipelineLayout,
-            .renderPass = logicalDevice->blitFrameBufferRenderer->renderPass,
+            .layout = blitFrameBufferRenderer->pipelineLayout,
+            .renderPass = blitFrameBufferRenderer->renderPass,
             .subpass = 0,
             .basePipelineHandle = VK_NULL_HANDLE,
             .basePipelineIndex = -1
     };
 
     if (ge->vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, NULL,
-                                              &logicalDevice->blitFrameBufferRenderer->graphicsPipeline) != VK_SUCCESS)
+                                              &blitFrameBufferRenderer->graphicsPipeline) != VK_SUCCESS)
     {
         J2dRlsTrace(J2D_TRACE_INFO, "failed to create graphics pipeline!\n")
         return JNI_FALSE;
@@ -296,34 +299,48 @@ jboolean VKRenderer_CreateBlitFrameBufferRenderer() {
             .maxSets = 1
     };
 
-    if (ge->vkCreateDescriptorPool(device, &descrPoolInfo, NULL, &logicalDevice->blitFrameBufferRenderer->descriptorPool) != VK_SUCCESS) {
+    if (ge->vkCreateDescriptorPool(device, &descrPoolInfo, NULL, &blitFrameBufferRenderer->descriptorPool) != VK_SUCCESS) {
         J2dRlsTraceLn(J2D_TRACE_INFO, "failed to create descriptor pool!")
         return JNI_FALSE;
     }
 
     VkDescriptorSetAllocateInfo descrAllocInfo = {
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-            .descriptorPool = logicalDevice->blitFrameBufferRenderer->descriptorPool,
+            .descriptorPool = blitFrameBufferRenderer->descriptorPool,
             .descriptorSetCount = 1,
-            .pSetLayouts = &logicalDevice->blitFrameBufferRenderer->descriptorSetLayout
+            .pSetLayouts = &blitFrameBufferRenderer->descriptorSetLayout
     };
 
-    if (ge->vkAllocateDescriptorSets(device, &descrAllocInfo, &logicalDevice->blitFrameBufferRenderer->descriptorSets) != VK_SUCCESS) {
+    if (ge->vkAllocateDescriptorSets(device, &descrAllocInfo, &blitFrameBufferRenderer->descriptorSets) != VK_SUCCESS) {
         J2dRlsTraceLn(J2D_TRACE_ERROR, "failed to allocate descriptor sets!");
         return JNI_FALSE;
     }
-    return JNI_TRUE;
+    return blitFrameBufferRenderer;
 }
 
-void VKRenderer_BlitFrameBuffer(VkFramebuffer frameBuffer,
-                                VkBuffer vertexBuffer,
-                                uint32_t vertexNum,
-                                uint32_t width,
-                                uint32_t height)
+void VKRenderer_TextureRender(VKImage *destImage, VKImage *srcImage, VkBuffer vertexBuffer, uint32_t vertexNum)
 {
     VKGraphicsEnvironment* ge = VKGE_graphics_environment();
     VKLogicalDevice* logicalDevice = &ge->devices[ge->enabledDeviceNum];
-    
+
+    VkDescriptorImageInfo imageInfo = {
+            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            .imageView = srcImage->view,
+            .sampler = logicalDevice->textureSampler
+    };
+
+    VkWriteDescriptorSet descriptorWrites = {
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .dstSet = logicalDevice->fillTexturePoly->descriptorSets,
+            .dstBinding = 0,
+            .dstArrayElement = 0,
+            .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            .descriptorCount = 1,
+            .pImageInfo = &imageInfo
+    };
+
+    ge->vkUpdateDescriptorSets(logicalDevice->device, 1, &descriptorWrites, 0, NULL);
+
     VkCommandBufferBeginInfo beginInfo = {};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 
@@ -335,17 +352,17 @@ void VKRenderer_BlitFrameBuffer(VkFramebuffer frameBuffer,
     VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
     VkRenderPassBeginInfo renderPassInfo = {
             .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-            .renderPass = logicalDevice->blitFrameBufferRenderer->renderPass,
-            .framebuffer = frameBuffer,
+            .renderPass = logicalDevice->fillTexturePoly->renderPass,
+            .framebuffer = destImage->framebuffer,
             .renderArea.offset = (VkOffset2D){0, 0},
-            .renderArea.extent = (VkExtent2D){width, height},
+            .renderArea.extent = destImage->extent,
             .clearValueCount = 1,
             .pClearValues = &clearColor
     };
 
     ge->vkCmdBeginRenderPass(logicalDevice->commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
     ge->vkCmdBindPipeline(logicalDevice->commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                          logicalDevice->blitFrameBufferRenderer->graphicsPipeline);
+                          logicalDevice->fillTexturePoly->graphicsPipeline);
 
     VkBuffer vertexBuffers[] = {vertexBuffer};
     VkDeviceSize offsets[] = {0};
@@ -353,8 +370,8 @@ void VKRenderer_BlitFrameBuffer(VkFramebuffer frameBuffer,
     VkViewport viewport = {
             .x = 0.0f,
             .y = 0.0f,
-            .width = (float)width,
-            .height = (float)height,
+            .width = destImage->extent.width,
+            .height = destImage->extent.height,
             .minDepth = 0.0f,
             .maxDepth = 1.0f
     };
@@ -363,12 +380,12 @@ void VKRenderer_BlitFrameBuffer(VkFramebuffer frameBuffer,
 
     VkRect2D scissor = {
             .offset = (VkOffset2D){0, 0},
-            .extent = (VkExtent2D){width, height},
+            .extent = destImage->extent,
     };
 
     ge->vkCmdSetScissor(logicalDevice->commandBuffer, 0, 1, &scissor);
     ge->vkCmdBindDescriptorSets(logicalDevice->commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                logicalDevice->blitFrameBufferRenderer->pipelineLayout, 0, 1, &logicalDevice->blitFrameBufferRenderer->descriptorSets, 0, NULL);
+                                logicalDevice->fillTexturePoly->pipelineLayout, 0, 1, &logicalDevice->fillTexturePoly->descriptorSets, 0, NULL);
     ge->vkCmdDraw(logicalDevice->commandBuffer, vertexNum, 1, 0, 0);
 
     ge->vkCmdEndRenderPass(logicalDevice->commandBuffer);
@@ -410,6 +427,12 @@ VKRenderer_FillRect(jint x, jint y, jint w, jint h)
 }
 
 jboolean VK_CreateLogicalDeviceRenderers() {
-    return VKRenderer_CreateBlitFrameBufferRenderer();
+    VKGraphicsEnvironment* ge = VKGE_graphics_environment();
+    VKLogicalDevice* logicalDevice = &ge->devices[ge->enabledDeviceNum];
+    logicalDevice->fillTexturePoly = VKRenderer_CreateFillTexturePoly();
+    if (!logicalDevice->fillTexturePoly) {
+        return JNI_FALSE;
+    }
+    return JNI_TRUE;
 }
 #endif /* !HEADLESS */

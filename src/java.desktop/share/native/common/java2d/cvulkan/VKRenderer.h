@@ -31,14 +31,9 @@
 #include "VKBase.h"
 #include "VKSurfaceData.h"
 
-jboolean VKRenderer_CreateBlitFrameBufferRenderer();
+VKRenderer* VKRenderer_CreateFillTexturePoly();
 
-void VKRenderer_BlitFrameBuffer(VkFramebuffer frameBuffer,
-                                VkBuffer vertexBuffer,
-                                uint32_t vertexNum,
-                                uint32_t width,
-                                uint32_t height);
-
+void VKRenderer_TextureRender(VKImage *destImage, VKImage *srcImage, VkBuffer vertexBuffer, uint32_t vertexNum);
 // fill ops
 void VKRenderer_FillRect(jint x, jint y, jint w, jint h);
 

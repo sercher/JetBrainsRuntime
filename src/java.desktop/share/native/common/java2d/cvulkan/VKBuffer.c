@@ -65,6 +65,7 @@ VKBuffer* VKBuffer_Create(VkDeviceSize size, VkBufferUsageFlags usage,
         return NULL;
     }
 
+    buffer->size = size;
 
     VkMemoryRequirements memRequirements;
     ge->vkGetBufferMemoryRequirements(logicalDevice->device, buffer->buffer, &memRequirements);
@@ -114,6 +115,7 @@ VKBuffer* VKBuffer_CreateFromData(void* vertices, VkDeviceSize bufferSize)
     }
     memcpy(data, vertices, bufferSize);
     ge->vkUnmapMemory(logicalDevice->device, buffer->memory);
+    buffer->size = bufferSize;
 
     return buffer;
 }
