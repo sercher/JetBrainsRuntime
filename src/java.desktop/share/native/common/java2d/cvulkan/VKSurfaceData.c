@@ -38,8 +38,6 @@ void VKSD_InitImageSurface(VKSDOps *vksdo) {
         return;
     }
 
-    VKGraphicsEnvironment* ge = VKGE_graphics_environment();
-    VKLogicalDevice* logicalDevice = &ge->devices[ge->enabledDeviceNum];
     vksdo->image = VKImage_Create(vksdo->width, vksdo->height, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_LINEAR,
                                   VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
                                   VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
@@ -60,6 +58,19 @@ void VKSD_InitImageSurface(VKSDOps *vksdo) {
         return;
     }
     ARRAY_FREE(vertices);
+
+    VKCVertex* cVertices = ARRAY_ALLOC(VKCVertex, 4);
+    ARRAY_PUSH_BACK(&cVertices, ((VKCVertex){-1.0f, -1.0f, RGBA_TO_L4(vksdo->bg_color)}));
+    ARRAY_PUSH_BACK(&cVertices, ((VKCVertex){1.0f, -1.0f, RGBA_TO_L4(vksdo->bg_color)}));
+    ARRAY_PUSH_BACK(&cVertices, ((VKCVertex){-1.0f, 1.0f, RGBA_TO_L4(vksdo->bg_color)}));
+    ARRAY_PUSH_BACK(&cVertices, ((VKCVertex){1.0f, 1.0f, RGBA_TO_L4(vksdo->bg_color)}));
+
+    vksdo->fillVertexBuffer = ARRAY_TO_VERTEX_BUF(cVertices);
+    if (!vksdo->fillVertexBuffer) {
+        J2dRlsTrace(J2D_TRACE_ERROR, "Cannot create vertex buffer\n")
+        return;
+    }
+    ARRAY_FREE(cVertices);
 }
 
 void VKSD_InitWindowSurface(VKWinSDOps *vkwinsdo) {
@@ -130,6 +141,11 @@ void VKSD_InitWindowSurface(VKWinSDOps *vkwinsdo) {
         if (!vkwinsdo->swapChainImages) {
           J2dRlsTraceLn(J2D_TRACE_ERROR, "Cannot get swapchain images");
           return;
+        }
+
+        if (VKImage_CreateFramebuffer(vkwinsdo->vksdOps.image, logicalDevice->fillTexturePoly->renderPass)) {
+            J2dRlsTraceLn(J2D_TRACE_ERROR, "Cannot create framebuffer for buffer image")
+            return;
         }
     }
 }

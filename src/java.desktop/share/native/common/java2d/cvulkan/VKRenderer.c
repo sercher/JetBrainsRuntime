@@ -101,12 +101,12 @@ VkShaderModule createShaderModule(VkDevice device, uint32_t* shader, uint32_t sz
 VKRenderer* VKRenderer_CreateFillTexturePoly() {
     VKGraphicsEnvironment* ge = VKGE_graphics_environment();
     VKLogicalDevice* logicalDevice = &ge->devices[ge->enabledDeviceNum];
-    VKRenderer* blitFrameBufferRenderer = malloc(sizeof (VKRenderer ));
+    VKRenderer* fillTexturePoly = malloc(sizeof (VKRenderer ));
 
     VkDevice device = logicalDevice->device;
 
     if (ge->vkCreateRenderPass(logicalDevice->device, VKRenderer_GetGenericRenderPassInfo(),
-                               NULL, &blitFrameBufferRenderer->renderPass) != VK_SUCCESS)
+                               NULL, &fillTexturePoly->renderPass) != VK_SUCCESS)
     {
         J2dRlsTrace(J2D_TRACE_INFO, "Cannot create render pass for device")
         return JNI_FALSE;
@@ -216,7 +216,7 @@ VKRenderer* VKRenderer_CreateFillTexturePoly() {
             .pBindings = &samplerLayoutBinding
     };
 
-    if (ge->vkCreateDescriptorSetLayout(device, &layoutInfo, NULL, &blitFrameBufferRenderer->descriptorSetLayout) != VK_SUCCESS) {
+    if (ge->vkCreateDescriptorSetLayout(device, &layoutInfo, NULL, &fillTexturePoly->descriptorSetLayout) != VK_SUCCESS) {
         J2dRlsTrace(J2D_TRACE_INFO,  "failed to create descriptor set layout!");
         return JNI_FALSE;
     }
@@ -224,12 +224,12 @@ VKRenderer* VKRenderer_CreateFillTexturePoly() {
     VkPipelineLayoutCreateInfo pipelineLayoutInfo = {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
             .setLayoutCount = 1,
-            .pSetLayouts = &blitFrameBufferRenderer->descriptorSetLayout,
+            .pSetLayouts = &fillTexturePoly->descriptorSetLayout,
             .pushConstantRangeCount = 0
     };
 
     if (ge->vkCreatePipelineLayout(device, &pipelineLayoutInfo, NULL,
-                                   &blitFrameBufferRenderer->pipelineLayout) != VK_SUCCESS)
+                                   &fillTexturePoly->pipelineLayout) != VK_SUCCESS)
     {
         J2dRlsTrace(J2D_TRACE_INFO, "failed to create pipeline layout!\n")
         return JNI_FALSE;
@@ -246,15 +246,15 @@ VKRenderer* VKRenderer_CreateFillTexturePoly() {
             .pMultisampleState = &multisampling,
             .pColorBlendState = &colorBlending,
             .pDynamicState = &dynamicState,
-            .layout = blitFrameBufferRenderer->pipelineLayout,
-            .renderPass = blitFrameBufferRenderer->renderPass,
+            .layout = fillTexturePoly->pipelineLayout,
+            .renderPass = fillTexturePoly->renderPass,
             .subpass = 0,
             .basePipelineHandle = VK_NULL_HANDLE,
             .basePipelineIndex = -1
     };
 
     if (ge->vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, NULL,
-                                              &blitFrameBufferRenderer->graphicsPipeline) != VK_SUCCESS)
+                                              &fillTexturePoly->graphicsPipeline) != VK_SUCCESS)
     {
         J2dRlsTrace(J2D_TRACE_INFO, "failed to create graphics pipeline!\n")
         return JNI_FALSE;
@@ -299,23 +299,213 @@ VKRenderer* VKRenderer_CreateFillTexturePoly() {
             .maxSets = 1
     };
 
-    if (ge->vkCreateDescriptorPool(device, &descrPoolInfo, NULL, &blitFrameBufferRenderer->descriptorPool) != VK_SUCCESS) {
+    if (ge->vkCreateDescriptorPool(device, &descrPoolInfo, NULL, &fillTexturePoly->descriptorPool) != VK_SUCCESS) {
         J2dRlsTraceLn(J2D_TRACE_INFO, "failed to create descriptor pool!")
         return JNI_FALSE;
     }
 
     VkDescriptorSetAllocateInfo descrAllocInfo = {
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-            .descriptorPool = blitFrameBufferRenderer->descriptorPool,
+            .descriptorPool = fillTexturePoly->descriptorPool,
             .descriptorSetCount = 1,
-            .pSetLayouts = &blitFrameBufferRenderer->descriptorSetLayout
+            .pSetLayouts = &fillTexturePoly->descriptorSetLayout
     };
 
-    if (ge->vkAllocateDescriptorSets(device, &descrAllocInfo, &blitFrameBufferRenderer->descriptorSets) != VK_SUCCESS) {
+    if (ge->vkAllocateDescriptorSets(device, &descrAllocInfo, &fillTexturePoly->descriptorSets) != VK_SUCCESS) {
         J2dRlsTraceLn(J2D_TRACE_ERROR, "failed to allocate descriptor sets!");
         return JNI_FALSE;
     }
-    return blitFrameBufferRenderer;
+    return fillTexturePoly;
+}
+
+
+VKRenderer* VKRenderer_CreateFillColorPoly() {
+    VKGraphicsEnvironment* ge = VKGE_graphics_environment();
+    VKLogicalDevice* logicalDevice = &ge->devices[ge->enabledDeviceNum];
+    VKRenderer* fillColorPoly = malloc(sizeof (VKRenderer ));
+
+    VkDevice device = logicalDevice->device;
+
+    if (ge->vkCreateRenderPass(logicalDevice->device, VKRenderer_GetGenericRenderPassInfo(),
+                               NULL, &fillColorPoly->renderPass) != VK_SUCCESS)
+    {
+        J2dRlsTrace(J2D_TRACE_INFO, "Cannot create render pass for device")
+        return JNI_FALSE;
+    }
+
+    // Create graphics pipeline
+    VkShaderModule vertShaderModule = createShaderModule(device, color_vert_data, sizeof (color_vert_data));
+    VkShaderModule fragShaderModule = createShaderModule(device, color_frag_data, sizeof (color_frag_data));
+
+    VkPipelineShaderStageCreateInfo vertShaderStageInfo = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+            .stage = VK_SHADER_STAGE_VERTEX_BIT,
+            .module = vertShaderModule,
+            .pName = "main"
+    };
+
+    VkPipelineShaderStageCreateInfo fragShaderStageInfo = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+            .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
+            .module = fragShaderModule,
+            .pName = "main"
+    };
+
+    VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
+    VKVertexDescr vertexDescr = VKVertex_GetCVertexDescr();
+    VkPipelineVertexInputStateCreateInfo vertexInputInfo = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+            .vertexBindingDescriptionCount = vertexDescr.bindingDescriptionCount,
+            .vertexAttributeDescriptionCount = vertexDescr.attributeDescriptionCount,
+            .pVertexBindingDescriptions = vertexDescr.bindingDescriptions,
+            .pVertexAttributeDescriptions = vertexDescr.attributeDescriptions
+    };
+
+    VkPipelineInputAssemblyStateCreateInfo inputAssembly = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+            .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP,
+            .primitiveRestartEnable = VK_FALSE
+    };
+
+    VkPipelineViewportStateCreateInfo viewportState = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+            .viewportCount = 1,
+            .scissorCount = 1
+    };
+
+    VkPipelineRasterizationStateCreateInfo rasterizer = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+            .depthClampEnable = VK_FALSE,
+            .rasterizerDiscardEnable = VK_FALSE,
+            .polygonMode = VK_POLYGON_MODE_FILL,
+            .lineWidth = 1.0f,
+            .cullMode = VK_CULL_MODE_NONE,
+            .depthBiasEnable = VK_FALSE,
+            .depthBiasConstantFactor = 0.0f,
+            .depthBiasClamp = 0.0f,
+            .depthBiasSlopeFactor = 0.0f
+    };
+
+    VkPipelineMultisampleStateCreateInfo multisampling = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+            .sampleShadingEnable = VK_FALSE,
+            .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT
+    };
+
+    VkPipelineColorBlendAttachmentState colorBlendAttachment = {
+            .colorWriteMask = VK_COLOR_COMPONENT_R_BIT |
+                              VK_COLOR_COMPONENT_G_BIT |
+                              VK_COLOR_COMPONENT_B_BIT |
+                              VK_COLOR_COMPONENT_A_BIT,
+            .blendEnable = VK_FALSE
+    };
+
+    VkPipelineColorBlendStateCreateInfo colorBlending = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+            .logicOpEnable = VK_FALSE,
+            .logicOp = VK_LOGIC_OP_COPY,
+            .attachmentCount = 1,
+            .pAttachments = &colorBlendAttachment,
+            .blendConstants[0] = 0.0f,
+            .blendConstants[1] = 0.0f,
+            .blendConstants[2] = 0.0f,
+            .blendConstants[3] = 0.0f
+    };
+
+    VkDynamicState dynamicStates[] = {
+            VK_DYNAMIC_STATE_VIEWPORT,
+            VK_DYNAMIC_STATE_SCISSOR
+    };
+
+    VkPipelineDynamicStateCreateInfo dynamicState = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+            .dynamicStateCount = 2,
+            .pDynamicStates = dynamicStates
+    };
+
+    VkPipelineLayoutCreateInfo pipelineLayoutInfo = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+            .setLayoutCount = 0,
+            .pushConstantRangeCount = 0
+    };
+
+    if (ge->vkCreatePipelineLayout(device, &pipelineLayoutInfo, NULL,
+                                   &fillColorPoly->pipelineLayout) != VK_SUCCESS)
+    {
+        J2dRlsTrace(J2D_TRACE_INFO, "failed to create pipeline layout!\n")
+        return JNI_FALSE;
+    }
+
+    VkGraphicsPipelineCreateInfo pipelineInfo = {
+            .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+            .stageCount = 2,
+            .pStages = shaderStages,
+            .pVertexInputState = &vertexInputInfo,
+            .pInputAssemblyState = &inputAssembly,
+            .pViewportState = &viewportState,
+            .pRasterizationState = &rasterizer,
+            .pMultisampleState = &multisampling,
+            .pColorBlendState = &colorBlending,
+            .pDynamicState = &dynamicState,
+            .layout = fillColorPoly->pipelineLayout,
+            .renderPass = fillColorPoly->renderPass,
+            .subpass = 0,
+            .basePipelineHandle = VK_NULL_HANDLE,
+            .basePipelineIndex = -1
+    };
+
+    if (ge->vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, NULL,
+                                      &fillColorPoly->graphicsPipeline) != VK_SUCCESS)
+    {
+        J2dRlsTrace(J2D_TRACE_INFO, "failed to create graphics pipeline!\n")
+        return JNI_FALSE;
+    }
+    ge->vkDestroyShaderModule(device, fragShaderModule, NULL);
+    ge->vkDestroyShaderModule(device, vertShaderModule, NULL);
+
+    return fillColorPoly;
+}
+
+void VKRenderer_BeginRendering() {
+    VKGraphicsEnvironment* ge = VKGE_graphics_environment();
+    VKLogicalDevice* logicalDevice = &ge->devices[ge->enabledDeviceNum];
+    VkCommandBufferBeginInfo beginInfo = {};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+    if (ge->vkBeginCommandBuffer(logicalDevice->commandBuffer, &beginInfo) != VK_SUCCESS) {
+        J2dRlsTraceLn(J2D_TRACE_ERROR, "failed to begin recording command buffer!");
+        return;
+    }
+}
+
+void VKRenderer_EndRendering() {
+    VKGraphicsEnvironment* ge = VKGE_graphics_environment();
+    VKLogicalDevice* logicalDevice = &ge->devices[ge->enabledDeviceNum];
+
+    if (ge->vkEndCommandBuffer(logicalDevice->commandBuffer) != VK_SUCCESS) {
+        J2dRlsTraceLn(J2D_TRACE_ERROR, "failed to record command buffer!")
+        return;
+    }
+
+    VkSemaphore waitSemaphores[] = {logicalDevice->imageAvailableSemaphore};
+    VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+    VkSemaphore signalSemaphores[] = {logicalDevice->renderFinishedSemaphore};
+
+    VkSubmitInfo submitInfo = {
+            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+            .waitSemaphoreCount = 1,
+            .pWaitSemaphores = waitSemaphores,
+            .pWaitDstStageMask = waitStages,
+            .commandBufferCount = 1,
+            .pCommandBuffers = &logicalDevice->commandBuffer,
+            .signalSemaphoreCount = 1,
+            .pSignalSemaphores = signalSemaphores
+    };
+
+    if (ge->vkQueueSubmit(logicalDevice->queue, 1, &submitInfo, logicalDevice->inFlightFence) != VK_SUCCESS) {
+        J2dRlsTraceLn(J2D_TRACE_ERROR,"failed to submit draw command buffer!")
+        return;
+    }
 }
 
 void VKRenderer_TextureRender(VKImage *destImage, VKImage *srcImage, VkBuffer vertexBuffer, uint32_t vertexNum)
@@ -341,13 +531,6 @@ void VKRenderer_TextureRender(VKImage *destImage, VKImage *srcImage, VkBuffer ve
 
     ge->vkUpdateDescriptorSets(logicalDevice->device, 1, &descriptorWrites, 0, NULL);
 
-    VkCommandBufferBeginInfo beginInfo = {};
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-
-    if (ge->vkBeginCommandBuffer(logicalDevice->commandBuffer, &beginInfo) != VK_SUCCESS) {
-        J2dRlsTraceLn(J2D_TRACE_ERROR, "failed to begin recording command buffer!");
-        return;
-    }
 
     VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
     VkRenderPassBeginInfo renderPassInfo = {
@@ -390,30 +573,54 @@ void VKRenderer_TextureRender(VKImage *destImage, VKImage *srcImage, VkBuffer ve
 
     ge->vkCmdEndRenderPass(logicalDevice->commandBuffer);
 
-    if (ge->vkEndCommandBuffer(logicalDevice->commandBuffer) != VK_SUCCESS) {
-        J2dRlsTraceLn(J2D_TRACE_ERROR, "failed to record command buffer!")
-        return;
-    }
 
-    VkSemaphore waitSemaphores[] = {logicalDevice->imageAvailableSemaphore};
-    VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-    VkSemaphore signalSemaphores[] = {logicalDevice->renderFinishedSemaphore};
+}
 
-    VkSubmitInfo submitInfo = {
-            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-            .waitSemaphoreCount = 1,
-            .pWaitSemaphores = waitSemaphores,
-            .pWaitDstStageMask = waitStages,
-            .commandBufferCount = 1,
-            .pCommandBuffers = &logicalDevice->commandBuffer,
-            .signalSemaphoreCount = 1,
-            .pSignalSemaphores = signalSemaphores
+void VKRenderer_ColorRender(VKImage *destImage, VkBuffer vertexBuffer, uint32_t vertexNum)
+{
+    VKGraphicsEnvironment* ge = VKGE_graphics_environment();
+    VKLogicalDevice* logicalDevice = &ge->devices[ge->enabledDeviceNum];
+
+
+    VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
+    VkRenderPassBeginInfo renderPassInfo = {
+            .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+            .renderPass = logicalDevice->fillColorPoly->renderPass,
+            .framebuffer = destImage->framebuffer,
+            .renderArea.offset = (VkOffset2D){0, 0},
+            .renderArea.extent = destImage->extent,
+            .clearValueCount = 1,
+            .pClearValues = &clearColor
     };
 
-    if (ge->vkQueueSubmit(logicalDevice->queue, 1, &submitInfo, logicalDevice->inFlightFence) != VK_SUCCESS) {
-        J2dRlsTraceLn(J2D_TRACE_ERROR,"failed to submit draw command buffer!")
-        return;
-    }
+    ge->vkCmdBeginRenderPass(logicalDevice->commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+    ge->vkCmdBindPipeline(logicalDevice->commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                          logicalDevice->fillColorPoly->graphicsPipeline);
+
+    VkBuffer vertexBuffers[] = {vertexBuffer};
+    VkDeviceSize offsets[] = {0};
+    ge->vkCmdBindVertexBuffers(logicalDevice->commandBuffer, 0, 1, vertexBuffers, offsets);
+    VkViewport viewport = {
+            .x = 0.0f,
+            .y = 0.0f,
+            .width = destImage->extent.width,
+            .height = destImage->extent.height,
+            .minDepth = 0.0f,
+            .maxDepth = 1.0f
+    };
+
+    ge->vkCmdSetViewport(logicalDevice->commandBuffer, 0, 1, &viewport);
+
+    VkRect2D scissor = {
+            .offset = (VkOffset2D){0, 0},
+            .extent = destImage->extent,
+    };
+
+    ge->vkCmdSetScissor(logicalDevice->commandBuffer, 0, 1, &scissor);
+    ge->vkCmdDraw(logicalDevice->commandBuffer, vertexNum, 1, 0, 0);
+
+    ge->vkCmdEndRenderPass(logicalDevice->commandBuffer);
+
 }
 
 void
@@ -430,7 +637,8 @@ jboolean VK_CreateLogicalDeviceRenderers() {
     VKGraphicsEnvironment* ge = VKGE_graphics_environment();
     VKLogicalDevice* logicalDevice = &ge->devices[ge->enabledDeviceNum];
     logicalDevice->fillTexturePoly = VKRenderer_CreateFillTexturePoly();
-    if (!logicalDevice->fillTexturePoly) {
+    logicalDevice->fillColorPoly = VKRenderer_CreateFillColorPoly();
+    if (!logicalDevice->fillTexturePoly || !logicalDevice->fillColorPoly) {
         return JNI_FALSE;
     }
     return JNI_TRUE;

@@ -30,6 +30,12 @@
 #include <vulkan/vulkan.h>
 #include "VKBuffer.h"
 
+#define RGBA_TO_L4(c)              \
+    (((c) >> 16) & (0xFF))/255.0f, \
+    (((c) >> 8) & 0xFF)/255.0f,    \
+    ((c) & 0xFF)/255.0f,           \
+    (((c) >> 24) & 0xFF)/255.0f
+
 #define ARRAY_TO_VERTEX_BUF(vertices)                                           \
     VKBuffer_CreateFromData(vertices, ARRAY_SIZE(vertices)*sizeof (vertices[0]))
 

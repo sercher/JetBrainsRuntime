@@ -49,6 +49,8 @@ VKImage* VKImage_CreateImageArrayFromSwapChain(VkSwapchainKHR swapchainKhr,
                                                VkFormat format,
                                                VkExtent2D extent);
 
+VkBool32 VKImage_CreateFramebuffer(VKImage *image, VkRenderPass renderPass);
+
 void VKImage_free(VKImage* image);
 void VKImage_dealloc(VKImage* image);
 #endif // VKImage_h_Included

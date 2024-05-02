@@ -62,6 +62,7 @@ typedef struct {
     VkAccessFlagBits        lastAccess;
     VkAccessFlagBits        lastWriteAccess;
     VKBuffer*               blitVertexBuffer;
+    VKBuffer*               fillVertexBuffer;
 } VKSDOps;
 
 /**
