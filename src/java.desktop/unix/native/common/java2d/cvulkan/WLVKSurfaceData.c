@@ -63,7 +63,8 @@ JNIEXPORT void JNICALL Java_sun_java2d_vulkan_WLVKSurfaceData_initOps
     vkwinsdo->vksdOps.width = width;
     vkwinsdo->vksdOps.height = height;
     vkwinsdo->vksdOps.scale = scale;
-    vkwinsdo->vksdOps.bg_color = backgroundRGB;
+    vkwinsdo->vksdOps.bgColor = backgroundRGB;
+    vkwinsdo->vksdOps.bgColorUpdated = VK_TRUE;
 #endif /* !HEADLESS */
 }
 

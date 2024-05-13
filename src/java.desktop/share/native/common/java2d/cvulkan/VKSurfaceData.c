@@ -48,10 +48,10 @@ void VKSD_InitImageSurface(VKSDOps *vksdo) {
     }
     
     VKCVertex* cVertices = ARRAY_ALLOC(VKCVertex, 4);
-    ARRAY_PUSH_BACK(&cVertices, ((VKCVertex){-1.0f, -1.0f, RGBA_TO_L4(vksdo->bg_color)}));
-    ARRAY_PUSH_BACK(&cVertices, ((VKCVertex){1.0f, -1.0f, RGBA_TO_L4(vksdo->bg_color)}));
-    ARRAY_PUSH_BACK(&cVertices, ((VKCVertex){-1.0f, 1.0f, RGBA_TO_L4(vksdo->bg_color)}));
-    ARRAY_PUSH_BACK(&cVertices, ((VKCVertex){1.0f, 1.0f, RGBA_TO_L4(vksdo->bg_color)}));
+    ARRAY_PUSH_BACK(&cVertices, ((VKCVertex){-1.0f, -1.0f, RGBA_TO_L4(vksdo->bgColor)}));
+    ARRAY_PUSH_BACK(&cVertices, ((VKCVertex){1.0f, -1.0f, RGBA_TO_L4(vksdo->bgColor)}));
+    ARRAY_PUSH_BACK(&cVertices, ((VKCVertex){-1.0f, 1.0f, RGBA_TO_L4(vksdo->bgColor)}));
+    ARRAY_PUSH_BACK(&cVertices, ((VKCVertex){1.0f, 1.0f, RGBA_TO_L4(vksdo->bgColor)}));
 
     vksdo->fillVertexBuffer = ARRAY_TO_VERTEX_BUF(cVertices);
     if (!vksdo->fillVertexBuffer) {

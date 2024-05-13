@@ -53,7 +53,8 @@ typedef struct {
     uint32_t                width;
     uint32_t                height;
     uint32_t                scale; // TODO Is it needed there at all?
-    uint32_t                bg_color;
+    uint32_t                bgColor;
+    VkBool32                bgColorUpdated;
     VKLogicalDevice*        device;
     VKImage*                image;
     // We track any access and write access separately, as read-read access does not need synchronization.

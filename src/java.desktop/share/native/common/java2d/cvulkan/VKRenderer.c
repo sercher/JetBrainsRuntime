@@ -478,7 +478,7 @@ void VKRenderer_BeginRendering() {
     }
 }
 
-void VKRenderer_EndRendering() {
+void VKRenderer_EndRendering(VkBool32 notifyRenderFinish, VkBool32 waitForDisplayImage) {
     VKGraphicsEnvironment* ge = VKGE_graphics_environment();
     VKLogicalDevice* logicalDevice = &ge->devices[ge->enabledDeviceNum];
 
@@ -493,12 +493,12 @@ void VKRenderer_EndRendering() {
 
     VkSubmitInfo submitInfo = {
             .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-            .waitSemaphoreCount = 1,
+            .waitSemaphoreCount = (waitForDisplayImage ? 1 : 0),
             .pWaitSemaphores = waitSemaphores,
             .pWaitDstStageMask = waitStages,
             .commandBufferCount = 1,
             .pCommandBuffers = &logicalDevice->commandBuffer,
-            .signalSemaphoreCount = 1,
+            .signalSemaphoreCount = (notifyRenderFinish ? 1 : 0),
             .pSignalSemaphores = signalSemaphores
     };
 

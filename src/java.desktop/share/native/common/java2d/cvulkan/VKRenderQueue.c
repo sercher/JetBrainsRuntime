@@ -416,6 +416,26 @@ JNIEXPORT void JNICALL Java_sun_java2d_vulkan_VKRenderQueue_flushBuffer
                 J2dRlsTraceLn(J2D_TRACE_VERBOSE,
                     "VKRenderQueue_flushBuffer: SET_SURFACES");
                 dstOps = (VKSDOps *) jlong_to_ptr(dst);
+
+                if (dstOps != NULL && dstOps->drawableType == VKSD_WINDOW && dstOps->bgColorUpdated) {
+                    VKWinSDOps *winDstOps = (VKWinSDOps *)dstOps;
+                    VKGraphicsEnvironment* ge = VKGE_graphics_environment();
+                    VKLogicalDevice* logicalDevice = &ge->devices[ge->enabledDeviceNum];
+
+                    ge->vkWaitForFences(logicalDevice->device, 1, &logicalDevice->inFlightFence, VK_TRUE, UINT64_MAX);
+                    ge->vkResetFences(logicalDevice->device, 1, &logicalDevice->inFlightFence);
+
+                    ge->vkResetCommandBuffer(logicalDevice->commandBuffer, 0);
+
+                    VKRenderer_BeginRendering();
+
+                    VKRenderer_ColorRender(
+                            winDstOps->vksdOps.image,
+                            winDstOps->vksdOps.fillVertexBuffer->buffer, 4
+                    );
+
+                    VKRenderer_EndRendering(VK_FALSE, VK_FALSE);
+                }
             }
             break;
         case sun_java2d_pipe_BufferedOpCodes_SET_SCRATCH_SURFACE:
@@ -639,18 +659,13 @@ JNIEXPORT void JNICALL Java_sun_java2d_vulkan_VKRenderQueue_flushBuffer
 
         VKRenderer_BeginRendering();
 
-        VKRenderer_ColorRender(
-                winDstOps->vksdOps.image,
-                winDstOps->vksdOps.fillVertexBuffer->buffer, 4
-        );
-
         VKRenderer_TextureRender(
                 &winDstOps->swapChainImages[imageIndex],
                 winDstOps->vksdOps.image,
                 logicalDevice->blitVertexBuffer->buffer, 4
         );
 
-        VKRenderer_EndRendering();
+        VKRenderer_EndRendering(VK_TRUE, VK_TRUE);
 
         VkSemaphore signalSemaphores[] = {logicalDevice->renderFinishedSemaphore};
 
