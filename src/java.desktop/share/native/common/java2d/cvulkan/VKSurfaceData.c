@@ -46,19 +46,7 @@ void VKSD_InitImageSurface(VKSDOps *vksdo) {
         J2dRlsTrace(J2D_TRACE_ERROR, "Cannot create image\n");
         return;
     }
-
-    VKTxVertex* vertices = ARRAY_ALLOC(VKTxVertex, 4);
-    ARRAY_PUSH_BACK(&vertices, ((VKTxVertex){-1.0f, -1.0f, 0.0f, 0.0f}));
-    ARRAY_PUSH_BACK(&vertices, ((VKTxVertex){1.0f, -1.0f, 1.0f, 0.0f}));
-    ARRAY_PUSH_BACK(&vertices, ((VKTxVertex){-1.0f, 1.0f, 0.0f, 1.0f}));
-    ARRAY_PUSH_BACK(&vertices, ((VKTxVertex){1.0f, 1.0f, 1.0f, 1.0f}));
-    vksdo->blitVertexBuffer = ARRAY_TO_VERTEX_BUF(vertices);
-    if (!vksdo->blitVertexBuffer) {
-        J2dRlsTrace(J2D_TRACE_ERROR, "Cannot create vertex buffer\n")
-        return;
-    }
-    ARRAY_FREE(vertices);
-
+    
     VKCVertex* cVertices = ARRAY_ALLOC(VKCVertex, 4);
     ARRAY_PUSH_BACK(&cVertices, ((VKCVertex){-1.0f, -1.0f, RGBA_TO_L4(vksdo->bg_color)}));
     ARRAY_PUSH_BACK(&cVertices, ((VKCVertex){1.0f, -1.0f, RGBA_TO_L4(vksdo->bg_color)}));
@@ -143,8 +131,8 @@ void VKSD_InitWindowSurface(VKWinSDOps *vkwinsdo) {
           return;
         }
 
-        if (VKImage_CreateFramebuffer(vkwinsdo->vksdOps.image, logicalDevice->fillTexturePoly->renderPass)) {
-            J2dRlsTraceLn(J2D_TRACE_ERROR, "Cannot create framebuffer for buffer image")
+        if (!VKImage_CreateFramebuffer(vkwinsdo->vksdOps.image, logicalDevice->fillTexturePoly->renderPass)) {
+            J2dRlsTraceLn(J2D_TRACE_ERROR, "Cannot create framebuffer for window surface")
             return;
         }
     }

@@ -790,6 +790,18 @@ jboolean VK_CreateLogicalDevice(jint requestedDevice) {
         return JNI_FALSE;
     }
 
+    VKTxVertex* vertices = ARRAY_ALLOC(VKTxVertex, 4);
+    ARRAY_PUSH_BACK(&vertices, ((VKTxVertex){-1.0f, -1.0f, 0.0f, 0.0f}));
+    ARRAY_PUSH_BACK(&vertices, ((VKTxVertex){1.0f, -1.0f, 1.0f, 0.0f}));
+    ARRAY_PUSH_BACK(&vertices, ((VKTxVertex){-1.0f, 1.0f, 0.0f, 1.0f}));
+    ARRAY_PUSH_BACK(&vertices, ((VKTxVertex){1.0f, 1.0f, 1.0f, 1.0f}));
+    logicalDevice->blitVertexBuffer = ARRAY_TO_VERTEX_BUF(vertices);
+    if (!logicalDevice->blitVertexBuffer) {
+        J2dRlsTrace(J2D_TRACE_ERROR, "Cannot create vertex buffer\n")
+        return JNI_FALSE;
+    }
+    ARRAY_FREE(vertices);
+
     return JNI_TRUE;
 }
 

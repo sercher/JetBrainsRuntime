@@ -29,6 +29,7 @@
 #include <vulkan/vulkan.h>
 #include "CArrayUtil.h"
 #include "jni.h"
+#include "VKBuffer.h"
 
 typedef char* pchar;
 
@@ -57,6 +58,7 @@ typedef struct {
     VkFence             inFlightFence;
     VkQueue             queue;
     VkSampler           textureSampler;
+    VKBuffer*           blitVertexBuffer;
 } VKLogicalDevice;
 
 

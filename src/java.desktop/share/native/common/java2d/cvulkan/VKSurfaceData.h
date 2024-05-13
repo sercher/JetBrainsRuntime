@@ -61,7 +61,6 @@ typedef struct {
     VkPipelineStageFlagBits lastWriteStage;
     VkAccessFlagBits        lastAccess;
     VkAccessFlagBits        lastWriteAccess;
-    VKBuffer*               blitVertexBuffer;
     VKBuffer*               fillVertexBuffer;
 } VKSDOps;
 

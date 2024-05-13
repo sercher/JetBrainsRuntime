@@ -647,7 +647,7 @@ JNIEXPORT void JNICALL Java_sun_java2d_vulkan_VKRenderQueue_flushBuffer
         VKRenderer_TextureRender(
                 &winDstOps->swapChainImages[imageIndex],
                 winDstOps->vksdOps.image,
-                winDstOps->vksdOps.blitVertexBuffer->buffer, 4
+                logicalDevice->blitVertexBuffer->buffer, 4
         );
 
         VKRenderer_EndRendering();
