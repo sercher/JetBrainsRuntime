@@ -2419,7 +2419,7 @@ Java_sun_awt_windows_WFramePeer_updateCustomTitleBar(JNIEnv *env, jclass cls, jo
 {
     TRY;
 
-    AwtToolkit::GetInstance().InvokeFunction(AwtFrame::_UpdateCustomTitleBar, env->NewGlobalRef(peer));
+//    AwtToolkit::GetInstance().InvokeFunction(AwtFrame::_UpdateCustomTitleBar, env->NewGlobalRef(peer));
     // global ref is deleted in _UpdateCustomTitleBar()
 
     CATCH_BAD_ALLOC;
